@@ -11,11 +11,49 @@ output:
     code_download: yes
 ---
 
-```{r}
-knitr::opts_chunk$set(echo = TRUE)
-```
+# Methods  
 
+## Experimental Design  
 
+The study was designed to capture toxico/phamacokinetics of dietary exposure to a PFAS mixture.  
+
+A contaminated diet was fed to all animals for 28 days and then all animals were fed a control diet for 28 days.  
+
+Animals were sampled on days 0, 7, 14, 21, 28, 35, 42, 48, and 56 with days 0 through 28 considered the 'uptake' period and 28 through 56 considered the 'elimination' period.  
+
+Day 28 is concurrently a datapoint for both study periods.  
+
+Tarazona (2015 and 2016) as well as OECD TG #305 were used as guides, but this study design is common for establishment of repeat dose dietary uptake and elimination parameters.  
+
+## Worms  
+
+Worms were grown in two soils: one soil that was control soil and one soil that was spiked with 16 PFAS at 0.1 mg/kg.  
+
+Worms were grown in these soils for 28 days, collected, rinsed, then homogenized into a "control" and "PFAS" slurry based on their group.  
+
+A standard curve of worm slurry mass to worm slurry volume and related back to the average worm weight to develop a slurry volume to single worm rate.  
+
+## Toads  
+
+Toads were obtained from a supplier that collected them in the field.  
+
+12 toads were sampled on day 0 for background and then 6 toads sampled weekly through the remainder of the study duration.  
+
+## Samples and Analytical Chemistry  
+
+Blood, liver, and the remainder of the animal were collected and analysed for PFAS concentration.  
+
+The remainder of the animal is termed "wholebody" for brevity but excludes blood and liver.  
+
+Concentrations are micrograms per kilogram of wet tissue weight (\u03BCg/kg).  
+
+# Analysis  
+
+## Package Management  
+
+Notable `r` packages are related to robust nonlinear least squares parameterization, differential equation solving and parameterization.  
+
+R version is `r R.Version()$version.string` and markdown document compiled on `r Sys.Date()`.  
 
 ```{r, message=F, warning=F }
 ### install_load function from maloneypatr, Irucka Embry, USGS and stack overflow 
@@ -46,11 +84,26 @@ install_load("knitr", "readxl","tidyverse","deSolve","minpack.lm","FME","ggpubr"
 ###! Tread Carefully Here !##
 options(dplyr.summarise.inform=F) 
 ### This turns off the tidyverse summarize/summarise messages indicating default grouping patterns in resultant tibbles ##
-### If you don't know what this means, cheak out https://stackoverflow.com/questions/62140483/how-to-interpret-dplyr-message-summarise-regrouping-output-by-x-override
+### If you don't know what this means, check out https://stackoverflow.com/questions/62140483/how-to-interpret-dplyr-message-summarise-regrouping-output-by-x-override
 ### Implications of this being false are unknown errors and impacts in other activities in this R session!
 
 
 ```
+
+## Data  
+
+Data are imported as stacked and filtered to just PFOS and 8:2 FTS from the original data.  
+
+Columns in initial dataframe identify each sample by toad ID#, timepoint (redundant to toad ID# technically), PFAS, and tissue.  
+
+Data created are two concentration vectors that (1) set Day 0 concentrations of 0 equal to 0.1 and other days' concentrations of 0 to NA and (2) set all concentrations of 0 to 0.1.  
+
+Notably, the concentrations set to 0 are not correctly accounting for the limits of quantification of the analytical method and need to be replaced with the appropriate value (e.g. 1/2 limit of detection) as to not bias the estimation of parameters.  
+
+0.1 as a lower limit replacement for 0 is supported by the fact that 0.1 is four-fold lower than the lowest concentration that is not 0 in the original dataset.  
+
+Summary data frames are also created (1) from concentrations including 0 and (2) from concentrations adjusted to a lower limit of 0.1.  
+
 
 ```{r}
 
@@ -58,12 +111,7 @@ toad <- read_csv("toad_stacked_data_subset_East_07SEP2023.csv",show_col_types=F)
 
 toad$PFAS <- factor(toad$PFAS)
 
-toad <- toad %>%
-  pivot_wider(names_from=tissue, values_from=concentration_ug_per_kg) %>%
-  mutate(liver_div_wholebody = liver/wholebody) %>%
-  pivot_longer(cols=liver:wholebody, values_to="concentration_ug_per_kg", names_to="tissue")
-
-toad <- toad %>%
+toad <- toad |>
   mutate(conc2=case_when(
     concentration_ug_per_kg==0&day==0~0.1,
     concentration_ug_per_kg==0&day>=1~as.numeric(NA),
@@ -74,75 +122,170 @@ toad <- toad %>%
     T~concentration_ug_per_kg
   ))
 
-toad <- toad %>%
+toad <- toad |>
   mutate(depday=day-28)
 
-toadsummPFOSmed <- toad %>%
-  filter(PFAS=="PFOS") %>%
-  group_by(tissue,day) %>%
-  summarize(medianPFOS = median(concentration_ug_per_kg, na.rm=T))
+toadsumm <- toad |>
+  group_by(PFAS, tissue, day) |>
+  summarize(
+    count=sum(!is.na(concentration_ug_per_kg)),
+    mean=mean(concentration_ug_per_kg, na.rm=T),
+    median=median(concentration_ug_per_kg, na.rm=T),
+    sd=sd(concentration_ug_per_kg, na.rm=T),
+    sem=sd/sqrt(count),
+    perc_cv=(sd/mean)*100,
+    upper=quantile(concentration_ug_per_kg, probs=c(0.975), names=F, na.rm=T),
+    lower=quantile(concentration_ug_per_kg, probs=c(0.025), names=F, na.rm=T),
+  )
 
-toad <- merge(toad, toadsummPFOSmed, by=c("tissue", "day"))
-toad$relative_to_PFOSmed <- toad$concentration_ug_per_kg/toad$medianPFOS
-
-toadsummday0med <- toad %>%
-  filter(day==0) %>%
-  group_by(tissue,PFAS) %>%
-  summarize(medianday0 = median(concentration_ug_per_kg, na.rm=T))
-
-toad <- merge(toad, toadsummday0med, by=c("PFAS", "tissue"))
-toad$relative_to_day0 <- toad$concentration_ug_per_kg-toad$medianday0#toad$concentration_ug_per_kg/toad$medianday0
-
+toadsumm3 <- toad |>
+  group_by(PFAS, tissue, day) |>
+  summarize(
+    count=sum(!is.na(conc3)),
+    mean=mean(conc3, na.rm=T),
+    median=median(conc3, na.rm=T),
+    sd=sd(conc3, na.rm=T),
+    sem=sd/sqrt(count),
+    perc_cv=(sd/mean)*100,
+    upper=quantile(conc3, probs=c(0.975), names=F, na.rm=T),
+    lower=quantile(conc3, probs=c(0.025), names=F, na.rm=T),
+  )
 
 
 
 ```
 
+## Figure 1  
 
+Data for each PFAS and tissue fitted with generalized additive model (cubic spline, 5 knots, NAs omitted) on log scaled y-axis indicate there are PFAS and tissue specific patterns.  
 
-```{r, warning=F, message=F}
+The difference in uptake and elimination rates between PFOS and 8:2 FTS are to be expected as well as the higher concentrations in the liver tissues.  
+
+```{r, warning=F, message=F, fig.height=6, fig.width=10}
+
+#ggplot(toad, aes(x=day, y=conc2, color=tissue)) +
+#  geom_point() +
+#  geom_smooth(method="loess", formula=y~x, se=F, span=0.75) +
+#  geom_vline(xintercept=28, linetype="dashed") +
+#  facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
+#  theme_classic() +
+#  labs(x="Day",y="Concentration, \u03BCg/kg, minimum set to 0.1 (Day 0) or NA (Day > 1)",color="Tissue") +
+#  scale_y_log10()
+
 
 ggplot(toad, aes(x=day, y=conc2, color=tissue)) +
   geom_point() +
-  geom_smooth(method="loess", formula=y~x, se=F, span=0.75) +
+  geom_smooth(method="gam", formula=y~s(x, bs="cs", k=5), se=T, method.args=list(na.action="na.omit")) +
   geom_vline(xintercept=28, linetype="dashed") +
   facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
   theme_classic() +
-  labs(x="Day",y="Concentration, \u03BCg/kg, minimum set to 0.1 (Day 0) or NA (Day > 1)",color="Tissue") +
+    labs(x="Day",y="Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0.1 (Day 0) or NA (Day > 1)\nGAM with cubic spline smoother and k=5 and na.omit") +
   scale_y_log10()
+
 
 ```
 
+## Figure 2  
 
+This figure, similar to above, includes the lower limit set to 0.1 and indicates it has little effect except in some later 8:2 FTS samples.  
 
-```{r}
+The presence of non-detect samples after a period of elimination is not surprising for 8:2 FTS given the elevated uptake and elimination rate parameters.  
+
+```{r, fig.height=6, fig.width=10}
+
+#ggplot(toad, aes(x=day, y=conc3, color=tissue)) +
+#  geom_point() +
+#  geom_smooth(method="loess",formula=y~x, se=F, span=0.75) +
+#  geom_vline(xintercept=28, linetype="dashed") +
+#  facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
+#  theme_classic() +
+#  labs(x="Day",y="Concentration, \u03BCg/kg, minimum set to 0.1",color="Tissue") +
+#  scale_y_log10()
+
 
 ggplot(toad, aes(x=day, y=conc3, color=tissue)) +
   geom_point() +
-  geom_smooth(method="loess",formula=y~x, se=F, span=0.75) +
+  geom_smooth(method="gam", formula=y~s(x, bs="cs", k=5), se=T, method.args=list(na.action="na.omit")) +
   geom_vline(xintercept=28, linetype="dashed") +
   facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
   theme_classic() +
-  labs(x="Day",y="Concentration, \u03BCg/kg, minimum set to 0.1",color="Tissue") +
+  labs(x="Day",y="Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0.1\nGAM with cubic spline smoother and k=5 and na.omit") +
   scale_y_log10()
 
 ```
 
-```{r}
+## Figure 3  
+
+This figure includes the original (nonsensical) lower limit of 0 with untransformed y-axis.  
+
+```{r, fig.height=6, fig.width=10}
 
 ggplot(toad, aes(x=day, y=concentration_ug_per_kg, color=tissue)) +
   geom_point() +
-  geom_smooth(method="gam", formula=y~s(x, k=5, bs="cs")) +
+  geom_smooth(method="gam", formula=y~s(x, k=5, bs="cs"), se=T, method.args=list(na.action="na.omit")) +
   geom_vline(xintercept=28, linetype="dashed") +
   facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
   theme_classic() +
-  labs(x="Day",y="Concentration, \u03BCg/kg, minimum set to 0, fit with GAM(bs=cs,k=5)",color="Tissue")
+  labs(x="Day",y="Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0\nGAM with cubic spline smoother and k=5 and na.omit")
 
 ```
 
-```{r}
+## Figure 3b  
 
-gam1 <- gam(concentration_ug_per_kg~s(day, k=9), data=subset(toad, tissue=="liver"))
-plot(gam1)
+This figure shows matched y-axes to indicate the difference in overall uptake between the PFAS.  
+
+Importantly, the tissue concentrations are at least one order of magnitude apart while the worm concentrations of each PFAS were nearly identical concentrations.  
+
+```{r, fig.height=6, fig.width=10}
+
+ggplot(toad, aes(x=day, y=concentration_ug_per_kg, color=tissue)) +
+  geom_point() +
+  geom_smooth(method="gam", formula=y~s(x, k=5, bs="cs"), se=T, method.args=list(na.action="na.omit")) +
+  geom_vline(xintercept=28, linetype="dashed") +
+  facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T)) +
+  theme_classic() +
+  labs(x="Day",y="Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0\nGAM with cubic spline smoother and k=5 and na.omit")
 
 ```
+
+
+## Figure 4  
+
+Some details emerge from viewing the center+dispersion summaries--peak PFOS concentrations in liver occur during elimination period and peak liver 8:2 FTS concentrations are during uptake.  
+
+Additionally, in both PFAS, the peak wholebody concentrations were on day 28 or prior depending on the statistic.  
+
+
+```{r, fig.height=6, fig.width=10}
+
+ggplot() +  
+  geom_ribbon(data=toadsumm3, aes(x=day, ymin=mean-sem, ymax=mean+sem, linetype='blank', fill=tissue, alpha=0.05), show.legend=F) +
+  geom_point(data=toadsumm3, aes(x=day, y=mean, color=tissue)) +
+  geom_line(data=toadsumm3, aes(x=day, y=mean, color=tissue)) +
+  geom_errorbar(data=toadsumm3, aes(ymin=lower, ymax=upper, x=day, color=tissue), width=2) +
+  geom_vline(xintercept=28, linetype="dashed") +
+  facet_wrap(~fct_reorder(PFAS,mean, .desc=T), scales="free_y") +
+  theme_classic()+
+  labs(x="Day",y="Mean Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0.1\nError bars are 95% confidence interval and ribbon is mean \u00B1 SEM")
+
+```
+
+## Figure 4b  
+
+```{r, fig.height=6, fig.width=10}
+
+
+ggplot() +  
+  geom_ribbon(data=toadsumm3, aes(x=day, ymin=median-sem, ymax=median+sem, linetype='blank', fill=tissue, alpha=0.05), show.legend=F) +
+  geom_point(data=toadsumm3, aes(x=day, y=median, color=tissue)) +
+  geom_line(data=toadsumm3, aes(x=day, y=median, color=tissue)) +
+  geom_errorbar(data=toadsumm3, aes(ymin=lower, ymax=upper, x=day, color=tissue), width=2) +
+  geom_vline(xintercept=28, linetype="dashed") +
+  facet_wrap(~fct_reorder(PFAS,mean, .desc=T), scales="free_y") +
+  theme_classic()+
+  labs(x="Day",y="Median Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0.1\nError bars are 95% confidence interval and ribbon is median \u00B1 SEM")
+
+```
+
+```
+
