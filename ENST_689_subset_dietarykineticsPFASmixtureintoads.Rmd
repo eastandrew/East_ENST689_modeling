@@ -1,0 +1,148 @@
+---
+title: "Dietary Kinetics of a PFAS Mixture in American Toads (Anaxyrus americanus)"
+author: "Andrew East"
+date: "2023-09-07"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+    code_folding: hide
+    code_download: yes
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r, message=F, warning=F }
+### install_load function from maloneypatr, Irucka Embry, USGS and stack overflow 
+### see https://gitlab.com/iembry/install.load
+### Check if R package is installed then load library answered by
+###	maloneypatr is the source for the original function. See http://stackoverflow.com/questions/15155814/check-if-r-package-is-installed-then-load-library
+install_load <- function (package1, ...) {
+  # convert arguments to vector
+  packages <- c(package1, ...)
+  # start loop to determine if each package is installed
+  for (package in packages) {
+    # if package is installed locally, load
+  if (package %in% rownames(installed.packages()))
+      try(do.call(library, list(package))) # Source 2
+    # if package is not installed locally, download and then load
+    else {
+      install.packages(package, repos =
+        c("https://cloud.r-project.org"),
+        dependencies = NA, type = getOption("pkgType"))
+      try(do.call(library, list(package))) # Source 2
+    }
+  }
+}
+
+install_load("knitr", "readxl","tidyverse","deSolve","minpack.lm","FME","ggpubr", "nlstools", "investr","propagate",  "mgcv")
+
+
+###! Tread Carefully Here !##
+options(dplyr.summarise.inform=F) 
+### This turns off the tidyverse summarize/summarise messages indicating default grouping patterns in resultant tibbles ##
+### If you don't know what this means, cheak out https://stackoverflow.com/questions/62140483/how-to-interpret-dplyr-message-summarise-regrouping-output-by-x-override
+### Implications of this being false are unknown errors and impacts in other activities in this R session!
+
+
+```
+
+```{r}
+
+toad <- read_csv("toad_stacked_data_subset_East_07SEP2023.csv",show_col_types=F)
+
+toad$PFAS <- factor(toad$PFAS)
+
+toad <- toad %>%
+  pivot_wider(names_from=tissue, values_from=concentration_ug_per_kg) %>%
+  mutate(liver_div_wholebody = liver/wholebody) %>%
+  pivot_longer(cols=liver:wholebody, values_to="concentration_ug_per_kg", names_to="tissue")
+
+toad <- toad %>%
+  mutate(conc2=case_when(
+    concentration_ug_per_kg==0&day==0~0.1,
+    concentration_ug_per_kg==0&day>=1~as.numeric(NA),
+    T~concentration_ug_per_kg
+  ),
+  conc3=case_when(
+    concentration_ug_per_kg==0~0.1,
+    T~concentration_ug_per_kg
+  ))
+
+toad <- toad %>%
+  mutate(depday=day-28)
+
+toadsummPFOSmed <- toad %>%
+  filter(PFAS=="PFOS") %>%
+  group_by(tissue,day) %>%
+  summarize(medianPFOS = median(concentration_ug_per_kg, na.rm=T))
+
+toad <- merge(toad, toadsummPFOSmed, by=c("tissue", "day"))
+toad$relative_to_PFOSmed <- toad$concentration_ug_per_kg/toad$medianPFOS
+
+toadsummday0med <- toad %>%
+  filter(day==0) %>%
+  group_by(tissue,PFAS) %>%
+  summarize(medianday0 = median(concentration_ug_per_kg, na.rm=T))
+
+toad <- merge(toad, toadsummday0med, by=c("PFAS", "tissue"))
+toad$relative_to_day0 <- toad$concentration_ug_per_kg-toad$medianday0#toad$concentration_ug_per_kg/toad$medianday0
+
+
+
+
+```
+
+
+
+```{r, warning=F, message=F}
+
+ggplot(toad, aes(x=day, y=conc2, color=tissue)) +
+  geom_point() +
+  geom_smooth(method="loess", formula=y~x, se=F, span=0.75) +
+  geom_vline(xintercept=28, linetype="dashed") +
+  facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
+  theme_classic() +
+  labs(x="Day",y="Concentration, \u03BCg/kg, minimum set to 0.1 (Day 0) or NA (Day > 1)",color="Tissue") +
+  scale_y_log10()
+
+```
+
+
+
+```{r}
+
+ggplot(toad, aes(x=day, y=conc3, color=tissue)) +
+  geom_point() +
+  geom_smooth(method="loess",formula=y~x, se=F, span=0.75) +
+  geom_vline(xintercept=28, linetype="dashed") +
+  facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
+  theme_classic() +
+  labs(x="Day",y="Concentration, \u03BCg/kg, minimum set to 0.1",color="Tissue") +
+  scale_y_log10()
+
+```
+
+```{r}
+
+ggplot(toad, aes(x=day, y=concentration_ug_per_kg, color=tissue)) +
+  geom_point() +
+  geom_smooth(method="gam", formula=y~s(x, k=5, bs="cs")) +
+  geom_vline(xintercept=28, linetype="dashed") +
+  facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
+  theme_classic() +
+  labs(x="Day",y="Concentration, \u03BCg/kg, minimum set to 0, fit with GAM(bs=cs,k=5)",color="Tissue")
+
+```
+
+```{r}
+
+gam1 <- gam(concentration_ug_per_kg~s(day, k=9), data=subset(toad, tissue=="liver"))
+plot(gam1)
+
+```
