@@ -1,5 +1,5 @@
 ---
-title: "Dietary Kinetics of a PFAS Mixture in American Toads (Anaxyrus americanus)"
+title: "Dietary Kinetics of a PFAS Mixture in American Toads (*Anaxyrus americanus*)"
 author: "Andrew East"
 date: "2023-09-07"
 output:
@@ -80,7 +80,7 @@ install_load <- function (package1, ...) {
   }
 }
 
-install_load("knitr", "readxl","tidyverse","deSolve","minpack.lm","FME","ggpubr", "nlstools", "investr","propagate",  "mgcv")
+install_load("knitr", "readxl","tidyverse","deSolve","minpack.lm","FME","ggpubr", "nlstools", "investr","propagate",  "mgcv", "mosaicCalc")
 
 
 ###! Tread Carefully Here !##
@@ -545,7 +545,7 @@ df|>
 
 ```{r}
 
-nlspl <- nls(conc3~259.767+((697.138*k01)/(V*(k01-0.007)))*(exp(-0.007*day)-exp(-k01*day)), 
+nlspl <- nls(conc3~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*day)-exp(-k01*day)), 
                data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"&day%in%c(0:56)), 
                start=list(V=0.1, k01=0.146) #,trace=T
              )
@@ -572,16 +572,16 @@ cvs <- rep(0,n)
 for(j in seq(n)){
   ys <- y[-j]
   xs <- x[-j]
-  d <- nls(ys~259.767+((697.138*k01)/(V*(k01-0.007)))*(exp(-0.007*xs)-exp(-k01*xs)), 
+  d <- nls(ys~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*xs)-exp(-k01*xs)), 
            start=list(V=0.1, k01=0.146))
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
 }
 
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-d <- nls(y~259.767+((697.138*k01)/(V*(k01-0.007)))*(exp(-0.007*x)-exp(-k01*x)), 
+plot(y~x, pch=16, xlab='day', ylab='conc')
+d <- nls(y~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*x)-exp(-k01*x)), 
            start=list(V=0.1, k01=0.146))
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
 usr <- par("usr")
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
@@ -594,14 +594,14 @@ plot(density(log(cvs)))
 
 subdata$cvs <- cvs
 
-plot(cvs~conc3, data=subdata, log="")
-plot(cvs~conc3, data=subdata, log="xy")
+#plot(cvs~conc3, data=subdata, log="")
+#plot(cvs~conc3, data=subdata, log="xy")
 
 
 par(mfrow=c(1,2))
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
-plot(cvs~conc3, data=subdata, log="xy")
+plot(y~x, pch=16, cex=1.5, xlab='day', ylab='conc')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+plot(cvs~conc3, data=subdata, log="")
 par(mfrow=c(1,1))
 
 
@@ -644,9 +644,9 @@ ggplot() +
 
 ```{r}
 
-nls8l <- nls(conc3~0.1+((885.228*k01)/(V*(k01-0.108)))*(exp(-0.108*day)-exp(-k01*day)), 
+nls8l <- nls(conc3~0.1+((885.228*(3/7)*k01)/(V*(k01-0.108)))*(exp(-0.108*day)-exp(-k01*day)),     #885.228
                data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"&day%in%c(0:56)), 
-               start=list(V=0.1, k01=0.938) #,trace=T
+               start=list(V=0.1, k01=0.83) #,trace=T
              )
 summary(nls8l)
 
@@ -673,16 +673,16 @@ cvs <- rep(0,n)
 for(j in seq(n)){
   ys <- y[-j]
   xs <- x[-j]
-  d <- nls(ys~0.1+((885.228*k01)/(V*(k01-0.108)))*(exp(-0.108*xs)-exp(-k01*xs)), 
+  d <- nls(ys~0.1+((885.228*(3/7)*k01)/(V*(k01-0.108)))*(exp(-0.108*xs)-exp(-k01*xs)), 
            start=list(V=2, k01=0.05), control=list(maxiter=500))
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
 }
 
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-d <- nls(y~0.1+((885.228*k01)/(V*(k01-0.108)))*(exp(-0.108*x)-exp(-k01*x)), 
+plot(y~x, pch=16, xlab='day', ylab='conc')
+d <- nls(y~0.1+((885.228*(3/7)*k01)/(V*(k01-0.108)))*(exp(-0.108*x)-exp(-k01*x)), 
            start=list(V=2, k01=0.05))
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
 usr <- par("usr")
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
@@ -695,14 +695,14 @@ plot(density(log(cvs)))
 
 subdata$cvs <- cvs
 
-plot(cvs~conc3, data=subdata, log="")
-plot(cvs~conc3, data=subdata, log="xy")
+#plot(cvs~conc3, data=subdata, log="")
+#plot(cvs~conc3, data=subdata, log="xy")
 
 
 par(mfrow=c(1,2))
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
-plot(cvs~conc3, data=subdata, log="xy")
+plot(y~x, pch=16, xlab='day', ylab='conc', log="")
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+plot(cvs~conc3, data=subdata, log="")
 par(mfrow=c(1,1))
 
 
@@ -743,7 +743,7 @@ ggplot() +
 
 ```{r}
 
-nlspw <- nls(conc3~26.568+((697.138*k01)/(V*(k01-0.007)))*(exp(-0.007*day)-exp(-k01*day)), 
+nlspw <- nls(conc3~26.568+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*day)-exp(-k01*day)), 
                data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"&day%in%c(0:56)), 
                start=list(V=0.1, k01=0.265) #,trace=T
              )
@@ -772,16 +772,16 @@ cvs <- rep(0,n)
 for(j in seq(n)){
   ys <- y[-j]
   xs <- x[-j]
-  d <- nls(ys~26.568+((697.138*k01)/(V*(k01-0.007)))*(exp(-0.007*xs)-exp(-k01*xs)), 
+  d <- nls(ys~26.568+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*xs)-exp(-k01*xs)), 
            start=list(V=0.1, k01=0.265))
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
 }
 
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-d <- nls(y~26.568+((697.138*k01)/(V*(k01-0.007)))*(exp(-0.007*x)-exp(-k01*x)), 
+plot(y~x, pch=16, xlab='day', ylab='conc')
+d <- nls(y~26.568+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*x)-exp(-k01*x)), 
            start=list(V=0.1, k01=0.265))
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
 usr <- par("usr")
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
@@ -794,14 +794,14 @@ plot(density(log(cvs)))
 
 subdata$cvs <- cvs
 
-plot(cvs~conc3, data=subdata, log="")
-plot(cvs~conc3, data=subdata, log="xy")
+#plot(cvs~conc3, data=subdata, log="")
+#plot(cvs~conc3, data=subdata, log="xy")
 
 
 par(mfrow=c(1,2))
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
-plot(cvs~conc3, data=subdata, log="xy")
+plot(y~x, pch=16, xlab='day', ylab='conc')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+plot(cvs~conc3, data=subdata, log="")
 par(mfrow=c(1,1))
 
 
@@ -849,7 +849,7 @@ ggplot() +
 
 ```{r}
 
-nls8l <- nls(conc3~0.1+((885.228*k01)/(V*(k01-0.091)))*(exp(-0.091*day)-exp(-k01*day)), 
+nls8l <- nls(conc3~0.1+((885.228*(3/7)*k01)/(V*(k01-0.091)))*(exp(-0.091*day)-exp(-k01*day)), 
                data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Whole Body"&day%in%c(0:56)), 
                start=list(V=0.1, k01=0.828) #,trace=T
              )
@@ -877,16 +877,16 @@ cvs <- rep(0,n)
 for(j in seq(n)){
   ys <- y[-j]
   xs <- x[-j]
-  d <- nls(ys~0.1+((885.228*k01)/(V*(k01-0.091)))*(exp(-0.091*xs)-exp(-k01*xs)), 
+  d <- nls(ys~0.1+((885.228*(3/7)*k01)/(V*(k01-0.091)))*(exp(-0.091*xs)-exp(-k01*xs)), 
            start=list(V=0.1, k01=0.828))
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
 }
 
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-d <- nls(y~0.1+((885.228*k01)/(V*(k01-0.091)))*(exp(-0.091*x)-exp(-k01*x)), 
+plot(y~x, pch=16, xlab='day', ylab='conc')
+d <- nls(y~0.1+((885.228*(3/7)*k01)/(V*(k01-0.091)))*(exp(-0.091*x)-exp(-k01*x)), 
            start=list(V=0.1, k01=0.828))
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
 usr <- par("usr")
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
@@ -899,14 +899,14 @@ plot(density(log(cvs)))
 
 subdata$cvs <- cvs
 
-plot(cvs~conc3, data=subdata, log="")
-plot(cvs~conc3, data=subdata, log="xy")
+#plot(cvs~conc3, data=subdata, log="")
+#plot(cvs~conc3, data=subdata, log="xy")
 
 
 par(mfrow=c(1,2))
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
-plot(cvs~conc3, data=subdata, log="xy")
+plot(y~x, pch=16, xlab='day', ylab='conc')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+plot(cvs~conc3, data=subdata, log="")
 par(mfrow=c(1,1))
 
 
@@ -948,7 +948,7 @@ Either way, equal uptake and elimination does not make sense.
 
 ```{r}
 
-nlspl2 <- nlsLM(conc3~259.767+((697.138*k01)/(V*(k01-k10)))*(exp(-k10*day)-exp(-k01*day)), 
+nlspl2 <- nlsLM(conc3~259.767+((697.138*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*day)-exp(-k01*day)), 
                data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"&day%in%c(0:56)), 
                start=list(V=0.5, k01=0.057, k10=0.007) #,trace=T, algorithm="port",control=list(minFactor=1e-20, maxiter=100, warnOnly=T)
              )
@@ -977,16 +977,16 @@ cvs <- rep(0,n)
 for(j in seq(n)){
   ys <- y[-j]
   xs <- x[-j]
-  d <- nlsLM(ys~259.767+((697.138*k01)/(V*(k01-k10)))*(exp(-k10*xs)-exp(-k01*xs)), 
+  d <- nlsLM(ys~259.767+((697.138*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*xs)-exp(-k01*xs)), 
            start=list(V=0.5, k01=0.057, k10=0.007))
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
 }
 
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-d <- nlsLM(y~259.767+((697.138*k01)/(V*(k01-k10)))*(exp(-k10*x)-exp(-k01*x)), 
+plot(y~x, pch=16, xlab='day', ylab='conc')
+d <- nlsLM(y~259.767+((697.138*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*x)-exp(-k01*x)), 
            start=list(V=0.5, k01=0.057, k10=0.007))
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
 usr <- par("usr")
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
@@ -999,14 +999,14 @@ plot(density(log(cvs)))
 
 subdata$cvs <- cvs
 
-plot(cvs~conc3, data=subdata, log="")
-plot(cvs~conc3, data=subdata, log="xy")
+#plot(cvs~conc3, data=subdata, log="")
+#plot(cvs~conc3, data=subdata, log="xy")
 
 
 par(mfrow=c(1,2))
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
-plot(cvs~conc3, data=subdata, log="xy")
+plot(y~x, pch=16, xlab='day', ylab='conc')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+plot(cvs~conc3, data=subdata, log="")
 par(mfrow=c(1,1))
 
 
@@ -1061,7 +1061,7 @@ Either way, equal uptake and elimination does not make sense.
 
 
 
-nls8l2 <- nlsLM(conc3~0.1+((885.228*k01)/(V*(k01-k10)))*(exp(-k10*day)-exp(-k01*day)), 
+nls8l2 <- nlsLM(conc3~0.1+((885.228*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*day)-exp(-k01*day)), 
                data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"&day%in%c(0:56)), 
                start=list(V=2, k01=0.05, k10=0.108) #,trace=T, algorithm="port",control=list(minFactor=1e-20, maxiter=100, warnOnly=T)
              )
@@ -1090,16 +1090,16 @@ cvs <- rep(0,n)
 for(j in seq(n)){
   ys <- y[-j]
   xs <- x[-j]
-  d <- nlsLM(ys~0.1+((885.228*k01)/(V*(k01-k10)))*(exp(-k10*xs)-exp(-k01*xs)), 
+  d <- nlsLM(ys~0.1+((885.228*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*xs)-exp(-k01*xs)), 
            start=list(V=2, k01=0.05, k10=0.108))
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
 }
 
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-d <- nlsLM(y~0.1+((885.228*k01)/(V*(k01-k10)))*(exp(-k10*x)-exp(-k01*x)), 
+plot(y~x, pch=16, xlab='day', ylab='conc')
+d <- nlsLM(y~0.1+((885.228*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*x)-exp(-k01*x)), 
            start=list(V=2, k01=0.05, k10=0.108))
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
 usr <- par("usr")
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
@@ -1112,14 +1112,14 @@ plot(density(log(cvs)))
 
 subdata$cvs <- cvs
 
-plot(cvs~conc3, data=subdata, log="")
-plot(cvs~conc3, data=subdata, log="xy")
+#plot(cvs~conc3, data=subdata, log="")
+#plot(cvs~conc3, data=subdata, log="xy")
 
 
 par(mfrow=c(1,2))
-plot(y~x, pch=19, col='gray', cex=1.5, xlab='day', ylab='conc')
-lines(predict(d)[order(x)]~sort(x), lwd=4, col='black')
-plot(cvs~conc3, data=subdata, log="xy")
+plot(y~x, pch=16, xlab='day', ylab='conc')
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+plot(cvs~conc3, data=subdata, log="")
 par(mfrow=c(1,1))
 
 
@@ -1195,15 +1195,15 @@ pkmodel <- function(time, state, parmeters) {
 }
 
 state <- c(bod = 26.568, liv = 259.767) # initial concs
-parmeters <- c(k12 = 0.05,#0.146,
+parmeters <- c(k12 = 0.146,
                k21 = 0.007,
                kel = 0.007)#,
                #kel2 = 0.1) 
-times <- seq(0, 56, 1) # start points to end points
+times <- seq(0, 56, by=0.1) # start points to end points
 dose_data <- data.frame(
   var=c("bod","liv"),
   time=c(0,0,2,2,5,5,7,7,9,9,12,12,14,14,16,16,19,19,21,21,23,23,26,26),
-  value=c(as.numeric(697.138*0.25),as.numeric(697.138*0.001)),
+  value=c(as.numeric(697.138),as.numeric(697.138*0.001)),
   method="add"
 )
 
@@ -1270,17 +1270,17 @@ cost <- function(p,e) {
              func = pkmodel, 
              parms = p,
              events = list(data=e))
-  modCost(out,dat, weight="none")
+  modCost(out,dat, weight="none") # put this inside the LOOCV
 }
 
-fit <- modFit(f=cost, p=parmeters, e=dose_data)
+fit <- modFit(f=cost, p=parmeters, e=dose_data) 
 summary(fit)
 
 out2 <- ode(y = state, 
             times = times, 
             func = pkmodel, 
             parms = coef(fit),
-            events = list(data=dose_data)) 
+            events = list(data=dose_data)) # or does LOOCV have to run all the way through here?
 
 #plot(out2, obs=dat)
 
@@ -1319,7 +1319,7 @@ cost2 <- function(p,e, data, ...) {
 }
 
 parmeters2 <- c(#bod=1, liv=250,
-                k12 = 0.05,#0.146,
+                k12 = 0.146,
                 k21 = 0.007,
                 kel = 0.007)#,
                 #kel2=0.01) 
@@ -1360,6 +1360,36 @@ points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"), col="re
 par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
 
 ```
+
+
+```{r}
+
+#pkmodel <- function(time, state, parmeters) {
+#  with(as.list(c(state, parmeters)), {
+#    dbod <- k21*liv-k12*bod-kel*bod
+#    dliv <- k12*bod-k21*liv#-kel2*liv
+#    list(c(dbod, dliv))
+#  })
+#}
+#
+#c(bod = 26.568, liv = 259.767)
+
+
+
+soln <- integrateODE(dliv~k12*bod-k21*liv, dbod~342+k21*liv-k12*bod-kel*bod, k12=0.095, k21=0.015, kel=0.414, domain(t=0:28), liv=260, bod=27)
+plot(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"), col="black", pch=4)
+points(c(1:28),soln$liv(c(1:28)), type="l")
+points(c(28:56),c(soln$liv(28)-exp(0.015*(0:28))), type="l")
+
+plot(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"), col="red", pch=4)
+points(c(1:28),soln$bod(c(1:28)), type="l")
+points(c(28:56),c(soln$bod(28)-exp(0.006*(0:28))), type="l")
+
+
+```
+
+
+
 
 #### Tarazona Dynamic model  
 
