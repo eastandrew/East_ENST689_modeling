@@ -80,7 +80,7 @@ install_load <- function (package1, ...) {
   }
 }
 
-install_load("knitr", "readxl","tidyverse","deSolve","minpack.lm","FME","ggpubr", "nlstools", "investr","propagate",  "mgcv", "mosaicCalc")
+install_load("knitr", "readxl","tidyverse","deSolve","minpack.lm","FME","ggpubr", "nlstools", "investr","propagate",  "mgcv", "mosaicCalc", "rbioacc")
 
 
 ###! Tread Carefully Here !##
@@ -1157,12 +1157,56 @@ ggplot() +
 
 
 
+#### PFOS liver via `rbioacc`  
+
+```{r}
+
+#697.138*(3/7)
+
+dataf <- toad |> 
+  filter(tissue=="Liver"&PFAS=="PFOS") |>
+  dplyr::select(PFAS, tissue, toadID, day, conc3) |>
+  rename(time=day,
+         conc=conc3) |>
+  mutate(expf=298,
+         replicate=toadID)
+
+modeldf <- modelData(dataf, time_accumulation=28)  
+fitmoddf <- fitTK(modeldf, iter=50000)
+
+plot(fitmoddf)
+quantile_table(fitmoddf)
+mean(bioacc_metric(fitmoddf)$BMFk)
+plot(density(bioacc_metric(fitmoddf)$BMFk))
 
 
+```
 
 
+#### 8:2 FTS liver via `rbioacc`  
+
+```{r}
+
+#885.228*(3/7)
+
+dataf <- toad |> 
+  filter(tissue=="Liver"&PFAS=="8:2 FTS") |>
+  dplyr::select(PFAS, tissue, toadID, day, conc3) |>
+  rename(time=day,
+         conc=conc3) |>
+  mutate(expf=379,
+         replicate=as.numeric(factor(toadID)))
+
+modeldf <- modelData(dataf, time_accumulation=28)  
+fitmoddf <- fitTK(modeldf, iter=50000)
+
+plot(fitmoddf)
+quantile_table(fitmoddf)
+mean(bioacc_metric(fitmoddf)$BMFk)
+plot(density(bioacc_metric(fitmoddf)$BMFk))
 
 
+```
 
 
 
