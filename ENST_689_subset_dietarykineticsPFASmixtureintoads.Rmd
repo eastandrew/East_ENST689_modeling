@@ -1179,6 +1179,138 @@ par(mfrow=c(1,1))
 ```
 
  
+##### LOOCV MAE 
+
+ 
+
+ 
+
+```{r}
+
+ 
+
+subdata <- toad%>%filter(PFAS=="PFOS"&tissue=="Liver"&day%in%c(0:56))
+
+ 
+
+y <- subdata$conc3
+
+x <- subdata$day
+
+n <- length(x)
+
+ 
+
+cvs <- rep(0,n)
+
+ 
+
+for(j in seq(n)){
+
+  ys <- y[-j]
+
+  xs <- x[-j]
+
+  d <- nls(ys~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*xs)-exp(-k01*xs)),
+
+           start=list(V=0.1, k01=0.146))
+
+  cvs[j] <- abs(y[j]-predict(d,data.frame(xs=x[j])))
+
+  print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+
+}
+
+ 
+
+plot(y~x, pch=16, xlab='day', ylab='conc')
+
+d <- nls(y~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*x)-exp(-k01*x)),
+
+           start=list(V=0.1, k01=0.146))
+
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
+usr <- par("usr")
+
+text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MAE", "=", round(mean(cvs), 5)), pos=2)
+
+text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MAE", "=", round(mean(abs(resid(d))), 5)), pos=2)
+
+ 
+
+
+
+#7% impact on prediction
+
+#sqrt(sum(cvs)/n) # standard deviation of predicted errors
+
+#1-(sum(cvs)/sum((y-mean(y))^2)) #predicted R^2 DOES NOT MAKE SENSE FOR NONLINEAR MODELS! IGNORE!
+
+#sd(abs(resid(d)))
+
+#summary(d)
+
+ 
+
+plot(density(cvs))
+
+plot(density(log10(cvs)))
+
+cvsnls2 <- cvs
+
+ 
+
+plot(cvs~abs(resid(d)))
+abline(a=0,b=1)
+abline(a=0.11,b=1.0359, lty=2)
+summary(lm(cvs~abs(resid(d))))
+
+
+mean((abs(resid(d))-cvs)/abs(resid(d)), na.rm=T)
+
+
+ 
+
+ 
+
+subdata$cvs <- cvs
+
+ 
+
+#plot(cvs~conc3, data=subdata, log="")
+
+#plot(cvs~conc3, data=subdata, log="xy")
+
+ 
+
+ 
+
+par(mfrow=c(1,2))
+
+plot(y~x, pch=16, cex=1.5, xlab='day', ylab='conc')
+
+lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
+plot(cvs~conc3, data=subdata, log="")
+
+par(mfrow=c(1,1))
+
+ 
+
+ 
+
+```
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
 
  
 
@@ -3276,6 +3408,206 @@ kable(LOOCVPFOSODE)
 
 ```
 
+
+
+```{r}
+
+ 
+
+ 
+
+subdat <- toad %>%
+  filter(PFAS=="PFOS") %>%
+  group_by(tissue,day,toadID) %>%
+  summarize(conc=mean(conc3)) %>%
+  pivot_wider(names_from=tissue, values_from=conc) %>%
+  rename(liv=Liver,
+         bod=`Whole Body`,
+         time=day) %>%
+  dplyr::select(-toadID) %>%
+  ungroup() %>%
+  data.frame()
+
+ 
+
+pkmodel <- function(time, state, parmeters) {  # two compartment ODE system model
+  with(as.list(c(state, parmeters)), {
+    dbod <- k21*liv-k12*bod-kel*bod
+    dliv <- k12*bod-k21*liv#-kel2*liv
+    list(c(dbod, dliv))
+  })
+}
+
+ 
+
+ 
+
+state <- c(bod = 26.568, liv = 259.767) # initial concs
+
+ 
+
+parmeters <- c(k12 = 0.146,
+               k21 = 0.007,
+               kel = 0.007) # initial parameter estimates from nls()/lm()
+
+ 
+
+times <- seq(0, 56, by=1) # start points to end points
+
+ 
+
+dose_data <- data.frame(
+  var=c("bod"),
+  time=c(0,2,5,7,9,12,14,16,19,21,23,26),
+  value=c(as.numeric(697.138*0.169)),
+  method="add"
+)
+
+ 
+
+ 
+
+ 
+
+n <- length(subdat$time)
+
+cvs <- rep(0,n)
+
+cvs2 <- rep(0,n)
+
+for(j in seq(n)){
+
+  sds <- subdat[-j,]
+
+  cost2 <- function(p,e) {
+    out <- ode(y = state,
+               times = times,
+               func = pkmodel,
+               parms = p,
+               events = list(data=e))
+    
+    modCost(out, sds, weight="none")
+  }
+
+  fits <- modFit(f=cost2, p=parmeters, e=dose_data, lower=0, upper=1)
+
+  outs <- data.frame(ode(y = state,
+                         times = times,
+                         func = pkmodel,
+                         parms = coef(fits),
+                         events = list(data=dose_data)))
+
+  cvs[j] <- abs(subdat[j,2]-outs[j,2])
+
+  cvs2[j] <- abs(subdat[j,3]-outs[j,3])
+
+  print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+
+}
+
+ 
+
+cvs
+plot(density(cvs[!is.na(cvs)]))
+plot(density(log10(cvs[!is.na(cvs)])))
+cvsode2 <- cvs
+
+cvs2
+
+ 
+
+mean(cvs, na.rm=T)
+
+mean(cvs2, na.rm=T)
+
+ 
+
+ 
+
+#sqrt(sum(cvs, na.rm=T)/n) # standard deviation of predicted errors
+sd(cvs)
+ 
+
+ 
+
+ 
+
+cost <- function(p,e) {
+
+  out <- ode(y = state,
+             times = times,
+             func = pkmodel,
+             parms = p,
+             events = list(data=e))
+
+  modCost(out,subdat, weight="none") # put this inside the LOOCV
+}
+
+ 
+
+fitfull <- modFit(f=cost, p=parmeters, e=dose_data, lower=0, upper=1)
+
+#summary(fitfull)
+
+ 
+
+outfull <- ode(y = state,
+            times = times,
+            func = pkmodel,
+            parms = coef(fitfull),
+            events = list(data=dose_data))
+
+ 
+
+ 
+
+nfull <- length(subdat$time)
+
+cvsfull <- rep(0,nfull)
+
+cvs2full <- rep(0,nfull)
+
+cvsfull <- abs(subdat[,2]-outfull[,2])
+
+cvs2full <- abs(subdat[,3]-outfull[,3])
+
+ 
+
+mean(cvsfull)
+
+sd(cvsfull)#sqrt(sum(cvsfull, na.rm=T)/n) # standard deviation of predicted errors
+
+mean(cvs2full)
+
+sd(cvsfull)#sqrt(sum(cvs2full, na.rm=T)/n) # standard deviation of predicted errors
+
+ 
+
+mean((cvsfull-cvs)/cvsfull, na.rm=T)
+
+ 
+
+ 
+
+ 
+
+LOOCVPFOSODE <- data.frame(
+
+  tissue=c("liver","body"),
+  full=c(mean(cvsfull), mean(cvs2full)),
+  LOO=c(mean(cvs, na.rm=T), mean(cvs2, na.rm=T))
+ ) |>
+  group_by(tissue) |>
+  mutate(perc_diff=(full-LOO)/full)
+
+ 
+
+kable(LOOCVPFOSODE)
+
+ 
+
+```
+
  
  
 ## Comparison of PFOS liver MSEs  
@@ -3286,6 +3618,14 @@ kable(LOOCVPFOSODE)
 
 plot(density(log10(cvsnls)), xlim=c(0,10))
 points(density(log10(cvsode[!is.na(cvsode)])), type="l", col="red")
+
+
+plot(density(cvsnls2), xlim=c(-100,2000))
+points(density(cvsode2[!is.na(cvsode2)]), type="l", col="red")
+
+plot(density(log10(cvsnls2)), xlim=c(0,5))
+points(density(log10(cvsode2[!is.na(cvsode2)])), type="l", col="red")
+
 
 ```
 
