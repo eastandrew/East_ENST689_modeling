@@ -13,1241 +13,2800 @@ output:
     toc: yes
 ---
 
+
 # Methods  
 
-## Experimental Design  
+## Experimental Design 
 
-The study was designed to capture toxico/phamacokinetics of dietary exposure to a PFAS mixture.  
+The study was designed to capture toxico/phamacokinetics of dietary exposure to a PFAS mixture. 
 
-A contaminated diet was fed to all animals for 28 days and then all animals were fed a control diet for 28 days.  
+A contaminated diet was fed to all animals for 28 days and then all animals were fed a control diet for 28 days. 
 
-Animals were sampled on days 0, 7, 14, 21, 28, 35, 42, 48, and 56 with days 0 through 28 considered the 'uptake' period and 28 through 56 considered the 'elimination' period.  
+Animals were sampled on days 0, 7, 14, 21, 28, 35, 42, 48, and 56 with days 0 through 28 considered the 'uptake' period and 28 through 56 considered the 'elimination' period. 
 
-Day 28 is concurrently a datapoint for both study periods.  
+Day 28 is concurrently a datapoint for both study periods. 
 
-Tarazona (2015 and 2016) as well as OECD TG #305 were used as guides, but this study design is common for establishment of repeat dose dietary uptake and elimination parameters.  
+Tarazona (2015 and 2016) as well as OECD TG #305 were used as guides, but this study design is common for establishment of repeat dose dietary uptake and elimination parameters. 
 
-## Worms  
+## Worms 
 
-Worms were grown in two soils: one soil that was control soil and one soil that was spiked with 16 PFAS at 0.1 mg/kg.  
+Worms were grown in two soils: one soil that was control soil and one soil that was spiked with 16 PFAS at 0.1 mg/kg. 
 
-Worms were grown in these soils for 28 days, collected, rinsed, then homogenized into a "control" and "PFAS" slurry based on their group.  
+Worms were grown in these soils for 28 days, collected, rinsed, then homogenized into a "control" and "PFAS" slurry based on their group. 
 
-A standard curve of worm slurry mass to worm slurry volume and related back to the average worm weight to develop a slurry volume to single worm rate.  
+A standard curve of worm slurry mass to worm slurry volume and related back to the average worm weight to develop a slurry volume to single worm rate. 
 
-## Toads  
+## Toads 
 
-Toads were obtained from a supplier that collected them in the field.  
+Toads were obtained from a supplier that collected them in the field. 
 
-12 toads were sampled on day 0 for background and then 6 toads sampled weekly through the remainder of the study duration.  
+12 toads were sampled on day 0 for background and then 6 toads sampled weekly through the remainder of the study duration. 
 
-## Samples and Analytical Chemistry  
+# Samples and Analytical Chemistry 
 
-Blood, liver, and the remainder of the animal were collected and analysed for PFAS concentration.  
+Blood, liver, and the remainder of the animal were collected and analysed for PFAS concentration. 
 
-The remainder of the animal is termed "Whole Body" for brevity but excludes blood and liver.  
+The remainder of the animal is termed "Whole Body" for brevity but excludes blood and liver. 
 
-Concentrations are micrograms per kilogram of wet tissue weight (\u03BCg/kg).  
+Concentrations are micrograms per kilogram of wet tissue weight (\u03BCg/kg). 
 
-# Analysis  
+# Analysis 
 
-## Package Management  
+## Package Management 
 
-Notable `r` packages are related to robust nonlinear least squares parameterization, differential equation solving and parameterization.  
+Notable `r` packages are related to robust nonlinear least squares parameterization, differential equation solving and parameterization. 
 
-R version is `r R.Version()$version.string` and markdown document compiled on `r Sys.Date()`.  
+R version is `r R.Version()$version.string` and markdown document compiled on `r Sys.Date()`. 
+
+ 
 
 ```{r, message=F, warning=F }
-### install_load function from maloneypatr, Irucka Embry, USGS and stack overflow 
+
+### install_load function from maloneypatr, Irucka Embry, USGS and stack overflow
+
 ### see https://gitlab.com/iembry/install.load
+
 ### Check if R package is installed then load library answered by
-###	maloneypatr is the source for the original function. See http://stackoverflow.com/questions/15155814/check-if-r-package-is-installed-then-load-library
+
+###        maloneypatr is the source for the original function. See http://stackoverflow.com/questions/15155814/check-if-r-package-is-installed-then-load-library
+
 install_load <- function (package1, ...) {
+
   # convert arguments to vector
+
   packages <- c(package1, ...)
+
   # start loop to determine if each package is installed
+
   for (package in packages) {
+
     # if package is installed locally, load
+
   if (package %in% rownames(installed.packages()))
+
       try(do.call(library, list(package))) # Source 2
+
     # if package is not installed locally, download and then load
+
     else {
+
       install.packages(package, repos =
+
         c("https://cloud.r-project.org"),
+
         dependencies = NA, type = getOption("pkgType"))
+
       try(do.call(library, list(package))) # Source 2
+
     }
+
   }
+
 }
 
-install_load("knitr", "readxl","tidyverse","deSolve","minpack.lm","FME","ggpubr", "nlstools", "investr","propagate",  "mgcv", "mosaicCalc", "rbioacc")
+ 
 
+install_load("knitr", "readxl","tidyverse","deSolve","minpack.lm","FME","ggpubr", "nlstools", "investr","propagate",  "mgcv", "mosaicCalc", "rbioacc", "FAMoS")
+
+ 
+
+ 
 
 ###! Tread Carefully Here !##
-options(dplyr.summarise.inform=F) 
+
+options(dplyr.summarise.inform=F)
+
 ### This turns off the tidyverse summarize/summarise messages indicating default grouping patterns in resultant tibbles ##
+
 ### If you don't know what this means, check out https://stackoverflow.com/questions/62140483/how-to-interpret-dplyr-message-summarise-regrouping-output-by-x-override
+
 ### Implications of this being false are unknown errors and impacts in other activities in this R session!
 
+ 
+
+ 
 
 ```
 
-## Data  
+ 
 
-Data are imported as stacked and filtered to just PFOS and 8:2 FTS from the original data.  
+## Data 
 
-Columns in initial dataframe identify each sample by toad ID#, timepoint (redundant to toad ID# technically), PFAS, and tissue.  
+ 
 
-Data created are two concentration vectors that (1) set Day 0 concentrations of 0 equal to 0.1 and other days' concentrations of 0 to NA and (2) set all concentrations of 0 to 0.1.  
+Data are imported as stacked and filtered to just PFOS and 8:2 FTS from the original data. 
 
-Notably, the concentrations set to 0 are not correctly accounting for the limits of quantification of the analytical method and need to be replaced with the appropriate value (e.g. 1/2 limit of detection) as to not bias the estimation of parameters.  
+Columns in initial dataframe identify each sample by toad ID#, timepoint (redundant to toad ID# technically), PFAS, and tissue. 
 
-0.1 as a lower limit replacement for 0 is supported by the fact that 0.1 is four-fold lower than the lowest concentration that is not 0 in the original dataset.  
+ 
 
-Summary data frames are also created (1) from concentrations including 0 and (2) from concentrations adjusted to a lower limit of 0.1.  
+Data created are two concentration vectors that (1) set Day 0 concentrations of 0 equal to 0.1 and other days' concentrations of 0 to NA and (2) set all concentrations of 0 to 0.1. 
 
+ 
+
+Notably, the concentrations set to 0 are not correctly accounting for the limits of quantification of the analytical method and need to be replaced with the appropriate value (e.g. 1/2 limit of detection) as to not bias the estimation of parameters. 
+
+ 
+
+0.1 as a lower limit replacement for 0 is supported by the fact that 0.1 is four-fold lower than the lowest concentration that is not 0 in the original dataset. 
+
+ 
+
+Summary data frames are also created (1) from concentrations including 0 and (2) from concentrations adjusted to a lower limit of 0.1. 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 toad <- read_csv("toad_stacked_data_subset_East_07SEP2023.csv",show_col_types=F)
 
+ 
+
 toad$PFAS <- factor(toad$PFAS)
+
 toad$tissue <- factor(toad$tissue, levels=c("liver","wholebody"),labels=c("Liver","Whole Body"))
 
+ 
+
 toad <- toad |>
+
   mutate(conc2=case_when(
+
     concentration_ug_per_kg==0&day==0~0.1,
+
     concentration_ug_per_kg==0&day>=1~as.numeric(NA),
+
     T~concentration_ug_per_kg
+
   ),
+
   conc3=case_when(
+
     concentration_ug_per_kg==0~0.1,
+
     T~concentration_ug_per_kg
+
   ))
 
+ 
+
 toad <- toad |>
+
   mutate(depday=day-28)
 
+ 
+
 toadsumm <- toad |>
+
   group_by(PFAS, tissue, day) |>
+
   summarize(
+
     count=sum(!is.na(concentration_ug_per_kg)),
+
     mean=mean(concentration_ug_per_kg, na.rm=T),
+
     median=median(concentration_ug_per_kg, na.rm=T),
+
     sd=sd(concentration_ug_per_kg, na.rm=T),
+
     sem=sd/sqrt(count),
+
     perc_cv=(sd/mean)*100,
+
     upper=quantile(concentration_ug_per_kg, probs=c(0.975), names=F, na.rm=T),
+
     lower=quantile(concentration_ug_per_kg, probs=c(0.025), names=F, na.rm=T),
+
   )
+
+ 
 
 toadsumm3 <- toad |>
+
   group_by(PFAS, tissue, day) |>
+
   summarize(
+
     count=sum(!is.na(conc3)),
+
     mean=mean(conc3, na.rm=T),
+
     median=median(conc3, na.rm=T),
+
     sd=sd(conc3, na.rm=T),
+
     sem=sd/sqrt(count),
+
     perc_cv=(sd/mean)*100,
+
     upper=quantile(conc3, probs=c(0.975), names=F, na.rm=T),
+
     lower=quantile(conc3, probs=c(0.025), names=F, na.rm=T),
+
   )
 
+ 
 
+ 
+
+ 
 
 ```
 
-## Figure 1  
+ 
 
-Data for each PFAS and tissue fitted with generalized additive model (cubic spline, 5 knots, NAs omitted) on log scaled y-axis indicate there are PFAS and tissue specific patterns.  
+## Figure 1 
 
-The difference in uptake and elimination rates between PFOS and 8:2 FTS are to be expected as well as the higher concentrations in the liver tissues.  
+ 
+
+Data for each PFAS and tissue fitted with generalized additive model (cubic spline, 5 knots, NAs omitted) on log scaled y-axis indicate there are PFAS and tissue specific patterns. 
+
+ 
+
+The difference in uptake and elimination rates between PFOS and 8:2 FTS are to be expected as well as the higher concentrations in the liver tissues. 
+
+ 
 
 ```{r, warning=F, message=F, fig.height=6, fig.width=10}
 
+ 
+
 #ggplot(toad, aes(x=day, y=conc2, color=tissue)) +
+
 #  geom_point() +
+
 #  geom_smooth(method="loess", formula=y~x, se=F, span=0.75) +
+
 #  geom_vline(xintercept=28, linetype="dashed") +
+
 #  facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
+
 #  theme_classic() +
+
 #  labs(x="Day",y="Concentration, \u03BCg/kg, minimum set to 0.1 (Day 0) or NA (Day > 1)",color="Tissue") +
+
 #  scale_y_log10()
 
+ 
+
+ 
 
 ggplot(toad, aes(x=day, y=conc2, color=tissue)) +
+
   geom_point() +
+
   geom_smooth(method="gam", formula=y~s(x, bs="cs", k=5), se=T, method.args=list(na.action="na.omit")) +
+
   geom_vline(xintercept=28, linetype="dashed") +
+
   facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
+
   theme_classic() +
+
     labs(x="Day",y="Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0.1 (Day 0) or NA (Day > 1)\nGAM with cubic spline smoother and k=5 and na.omit") +
+
   scale_y_log10()
 
+ 
+
+ 
 
 ```
 
-## Figure 2  
+ 
 
-This figure, similar to above, includes the lower limit set to 0.1 and indicates it has little effect except in some later 8:2 FTS samples.  
+## Figure 2 
 
-The presence of non-detect samples after a period of elimination is not surprising for 8:2 FTS given the elevated uptake and elimination rate parameters.  
+ 
+
+This figure, similar to above, includes the lower limit set to 0.1 and indicates it has little effect except in some later 8:2 FTS samples. 
+
+ 
+
+The presence of non-detect samples after a period of elimination is not surprising for 8:2 FTS given the elevated uptake and elimination rate parameters. 
+
+ 
 
 ```{r, fig.height=6, fig.width=10}
+
+ 
 
 #ggplot(toad, aes(x=day, y=conc3, color=tissue)) +
+
 #  geom_point() +
+
 #  geom_smooth(method="loess",formula=y~x, se=F, span=0.75) +
+
 #  geom_vline(xintercept=28, linetype="dashed") +
+
 #  facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
+
 #  theme_classic() +
+
 #  labs(x="Day",y="Concentration, \u03BCg/kg, minimum set to 0.1",color="Tissue") +
+
 #  scale_y_log10()
 
+ 
+
+ 
 
 ggplot(toad, aes(x=day, y=conc3, color=tissue)) +
+
   geom_point() +
+
   geom_smooth(method="gam", formula=y~s(x, bs="cs", k=5), se=T, method.args=list(na.action="na.omit")) +
+
   geom_vline(xintercept=28, linetype="dashed") +
+
   facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
+
   theme_classic() +
+
   labs(x="Day",y="Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0.1\nGAM with cubic spline smoother and k=5 and na.omit") +
+
   scale_y_log10()
 
+ 
+
 ```
 
-## Figure 3  
+ 
 
-This figure includes the original (nonsensical) lower limit of 0 with untransformed y-axis.  
+## Figure 3 
+
+ 
+
+This figure includes the original (nonsensical) lower limit of 0 with untransformed y-axis. 
+
+ 
 
 ```{r, fig.height=6, fig.width=10}
 
+ 
+
 ggplot(toad, aes(x=day, y=concentration_ug_per_kg, color=tissue)) +
+
   geom_point() +
+
   geom_smooth(method="gam", formula=y~s(x, k=5, bs="cs"), se=T, method.args=list(na.action="na.omit")) +
+
   geom_vline(xintercept=28, linetype="dashed") +
+
   facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T), scales="free_y") +
+
   theme_classic() +
+
   labs(x="Day",y="Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0\nGAM with cubic spline smoother and k=5 and na.omit")
+
+ 
 
 ```
 
-## Figure 3b  
+ 
 
-This figure shows matched y-axes to indicate the difference in overall uptake between the PFAS.  
+## Figure 3b 
 
-Importantly, the tissue concentrations are at least one order of magnitude apart while the worm concentrations of each PFAS were nearly identical concentrations.  
+ 
+
+This figure shows matched y-axes to indicate the difference in overall uptake between the PFAS. 
+
+ 
+
+Importantly, the tissue concentrations are at least one order of magnitude apart while the worm concentrations of each PFAS were nearly identical concentrations. 
+
+ 
 
 ```{r, fig.height=6, fig.width=10}
+
+ 
 
 ggplot(toad, aes(x=day, y=concentration_ug_per_kg, color=tissue)) +
+
   geom_point() +
+
   geom_smooth(method="gam", formula=y~s(x, k=5, bs="cs"), se=T, method.args=list(na.action="na.omit")) +
+
   geom_vline(xintercept=28, linetype="dashed") +
+
   facet_wrap(~fct_reorder(PFAS,concentration_ug_per_kg, .fun=median, .desc=T)) +
+
   theme_classic() +
+
   labs(x="Day",y="Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0\nGAM with cubic spline smoother and k=5 and na.omit")
+
+ 
 
 ```
 
+ 
 
-## Figure 4  
+ 
 
-Some details emerge from viewing the center+dispersion summaries--peak PFOS concentrations in liver occur during elimination period and peak liver 8:2 FTS concentrations are during uptake.  
+## Figure 4 
 
-Additionally, in both PFAS, the peak wholebody concentrations were on day 28 or prior depending on the statistic.  
+ 
 
+Some details emerge from viewing the center+dispersion summaries--peak PFOS concentrations in liver occur during elimination period and peak liver 8:2 FTS concentrations are during uptake. 
+
+ 
+
+Additionally, in both PFAS, the peak wholebody concentrations were on day 28 or prior depending on the statistic. 
+
+ 
+
+ 
 
 ```{r, fig.height=6, fig.width=10}
 
-ggplot() +  
+ 
+
+ggplot() + 
+
   geom_ribbon(data=toadsumm3, aes(x=day, ymin=mean-sem, ymax=mean+sem, linetype='blank', fill=tissue, alpha=0.05), show.legend=F) +
+
   geom_point(data=toadsumm3, aes(x=day, y=mean, color=tissue)) +
+
   geom_line(data=toadsumm3, aes(x=day, y=mean, color=tissue)) +
+
   geom_errorbar(data=toadsumm3, aes(ymin=lower, ymax=upper, x=day, color=tissue), width=2) +
+
   geom_vline(xintercept=28, linetype="dashed") +
-  facet_wrap(~fct_reorder(PFAS,mean, .desc=T), scales="free_y") +
+
+ facet_wrap(~fct_reorder(PFAS,mean, .desc=T), scales="free_y") +
+
   theme_classic()+
+
   labs(x="Day",y="Mean Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0.1\nError bars are 95% confidence interval and ribbon is mean \u00B1 SEM")
 
+ 
+
 ```
 
-## Figure 4b  
+ 
+
+## Figure 4b 
+
+ 
 
 ```{r, fig.height=6, fig.width=10}
 
+ 
 
-ggplot() +  
+ 
+
+ggplot() + 
+
   geom_ribbon(data=toadsumm3, aes(x=day, ymin=median-sem, ymax=median+sem, linetype='blank', fill=tissue, alpha=0.05), show.legend=F) +
+
   geom_point(data=toadsumm3, aes(x=day, y=median, color=tissue)) +
+
   geom_line(data=toadsumm3, aes(x=day, y=median, color=tissue)) +
+
   geom_errorbar(data=toadsumm3, aes(ymin=lower, ymax=upper, x=day, color=tissue), width=2) +
+
   geom_vline(xintercept=28, linetype="dashed") +
+
   facet_wrap(~fct_reorder(PFAS,mean, .desc=T), scales="free_y") +
+
   theme_classic()+
+
   labs(x="Day",y="Median Concentration, \u03BCg/kg",color="Tissue", caption="Minimum concentration set to 0.1\nError bars are 95% confidence interval and ribbon is median \u00B1 SEM")
 
+ 
+
 ```
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
-## Prediction Strategy  
+ 
 
-General description is to minimally use the strategies of OECD TG #305 for dietary bioaccumulation in fish. In this case, uptake and elimination rates can be estimated with linear regressions which provide (1) an estimate of rates, (2) evaluation of single vs multiple uptake/elimination processes, and (3) starting parameters for nonlinear or dynamic techniques.  
+## Prediction Strategy 
 
-### Liver elimination via ln(concentration)~time  
+ 
 
-OECD TG #305 (among other sources) relies on natural log concentration by elimination time (i.e. no exposure, control diet) linear regression to determine a slope to estimate a single process exponential decay type elimination parameter.  
+General description is to minimally use the strategies of OECD TG #305 for dietary bioaccumulation in fish. In this case, uptake and elimination rates can be estimated with linear regressions which provide (1) an estimate of rates, (2) evaluation of single vs multiple uptake/elimination processes, and (3) starting parameters for nonlinear or dynamic techniques. 
 
-The linearity of the relationship is useful in evaluating the question of whether there is one elimination process or others.  
+ 
+
+### Liver elimination via ln(concentration)~time 
+
+ 
+
+OECD TG #305 (among other sources) relies on natural log concentration by elimination time (i.e. no exposure, control diet) linear regression to determine a slope to estimate a single process exponential decay type elimination parameter. 
+
+ 
+
+The linearity of the relationship is useful in evaluating the question of whether there is one elimination process or others. 
+
+ 
 
 ```{r, fig.height=6, fig.width=10}
 
+ 
+
 ggplot(data = toad%>%filter(day%in%c(28:56)&tissue=="Liver"), aes(x = depday, y = log(conc3))) +
+
   stat_smooth(method = "lm", se=FALSE, color="black", formula = y ~ x) +
+
   geom_point() +
+
   stat_cor(aes(label = paste(after_stat(rr.label), after_stat(p.label), sep = "~`,`~")),
+
            r.accuracy = 0.01,
+
            p.accuracy = 0.001,
+
            label.x = 0, label.y = 9, size = 3) +
+
   stat_regline_equation(aes(label = after_stat(eq.label)),
+
                         label.x = 0, label.y = 10, size = 3) +
+
   theme_classic() +
+
   facet_wrap(~fct_reorder(PFAS,log(conc3), .fun=median, .desc=T)) +
+
   labs(y="Liver ln(concentration, \u03BCg/kg)", x="Depuration day (study day - 28)", caption="Minimum concentration set to 0.1\n")
+
+ 
 
 ```
 
+ 
 
-#### PFOS elimination  
+ 
 
-"depday" is "depuration day" as in (study day - 28) or the length of time eating control diet post-exposure period.  
+#### PFOS elimination 
 
-Lack of significance on slope p-value is worthy of note, but the small magnitude of is expected.  
+ 
+
+"depday" is "depuration day" as in (study day - 28) or the length of time eating control diet post-exposure period. 
+
+ 
+
+Lack of significance on slope p-value is worthy of note, but the small magnitude of is expected. 
+
+ 
 
 ```{r}
+
+ 
 
 summary(lm(log(conc3)~depday, data = toad%>%filter(day%in%c(28:56)&tissue=="Liver"&PFAS=="PFOS")))
 
+ 
+
 ```
 
-#### 8:2 FTS elimination  
+ 
+
+#### 8:2 FTS elimination 
+
+ 
 
 ```{r}
+
+ 
 
 summary(lm(log(conc3)~depday, data = toad%>%filter(day%in%c(28:56)&tissue=="Liver"&PFAS=="8:2 FTS")))
 
+ 
+
 ```
 
-### Whole Body elimination via ln(concentration)~time  
+ 
 
-OECD TG #305 (among other sources) relies on natural log concentration by elimination time (i.e. no exposure, control diet) linear regression to determine a slope to estimate a single process exponential decay type elimination parameter.  
+### Whole Body elimination via ln(concentration)~time 
 
-The linearity of the relationship is useful in evaluating the question of whether there is one elimination process or others.  
+ 
+
+OECD TG #305 (among other sources) relies on natural log concentration by elimination time (i.e. no exposure, control diet) linear regression to determine a slope to estimate a single process exponential decay type elimination parameter. 
+
+ 
+
+The linearity of the relationship is useful in evaluating the question of whether there is one elimination process or others. 
+
+ 
 
 ```{r, fig.height=6, fig.width=10}
 
+ 
+
 ggplot(data = toad%>%filter(day%in%c(28:56)&tissue=="Whole Body"), aes(x = depday, y = log(conc3))) +
+
   stat_smooth(method = "lm", se=FALSE, color="black", formula = y ~ x) +
+
   geom_point() +
+
   stat_cor(aes(label = paste(after_stat(rr.label), after_stat(p.label), sep = "~`,`~")),
+
            r.accuracy = 0.01,
-           p.accuracy = 0.001,
+
+          p.accuracy = 0.001,
+
            label.x = 0, label.y = 9, size = 3) +
+
   stat_regline_equation(aes(label = after_stat(eq.label)),
+
                         label.x = 0, label.y = 10, size = 3) +
+
   theme_classic() +
+
   facet_wrap(~fct_reorder(PFAS,log(conc3), .fun=median, .desc=T)) +
+
   labs(y="Whole Body ln(concentration, \u03BCg/kg)", x="Depuration day (study day - 28)", caption="Minimum concentration set to 0.1\n")
+
+ 
 
 ```
 
+ 
 
-#### PFOS elimination  
+ 
 
-"depday" is "depuration day" as in (study day - 28) or the length of time eating control diet post-exposure period.  
+#### PFOS elimination 
 
-Lack of significance on slope p-value is worthy of note, but the small magnitude of is expected.  
+ 
+
+"depday" is "depuration day" as in (study day - 28) or the length of time eating control diet post-exposure period. 
+
+ 
+
+Lack of significance on slope p-value is worthy of note, but the small magnitude of is expected. 
+
+ 
 
 ```{r}
+
+ 
 
 summary(lm(log(conc3)~depday, data = toad%>%filter(day%in%c(28:56)&tissue=="Whole Body"&PFAS=="PFOS")))
 
+ 
+
 ```
 
-#### 8:2 FTS elimination  
+ 
+
+#### 8:2 FTS elimination 
+
+ 
 
 ```{r}
+
+ 
 
 summary(lm(log(conc3)~depday, data = toad%>%filter(day%in%c(28:56)&tissue=="Whole Body"&PFAS=="8:2 FTS")))
 
+ 
+
 ```
 
+ 
 
+ 
 
-### Liver uptake via ln(concentration)~time  
+ 
 
-This analysis is fraught as concentration in tissues is f(uptake and elimination) during uptake period.  
+### Liver uptake via ln(concentration)~time 
 
-OECD TG #305 indicates reliance on this method during "linear" portion of uptake as elimination process(es) may require activation (among others) and would inherently lag uptake.  
+ 
 
-In this case, this means estimating uptake via linear regression only between days 0 and 7.  
+This analysis is fraught as concentration in tissues is f(uptake and elimination) during uptake period. 
 
+ 
+
+OECD TG #305 indicates reliance on this method during "linear" portion of uptake as elimination process(es) may require activation (among others) and would inherently lag uptake. 
+
+ 
+
+In this case, this means estimating uptake via linear regression only between days 0 and 7. 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 ggplot(data = toad%>%filter(day%in%c(0:7)&tissue=="Liver"), aes(x = day, y = log(conc3))) +
+
   stat_smooth(method = "lm", se=FALSE, color="black", formula = y ~ x) +
+
   geom_point() +
+
   stat_cor(aes(label = paste(after_stat(rr.label), after_stat(p.label), sep = "~`,`~")),
+
            r.accuracy = 0.01,
+
            p.accuracy = 0.001,
+
            label.x = 0, label.y = 9, size = 3) +
+
   stat_regline_equation(aes(label = after_stat(eq.label)),
+
                         label.x = 0, label.y = 10, size = 3) +
+
   theme_classic() +
+
   facet_wrap(~fct_reorder(PFAS,log(conc3), .fun=median, .desc=T)) +
+
   labs(y="Liver ln(concentration, \u03BCg/kg)", x="Study Day", caption="Minimum concentration set to 0.1\n")
+
+ 
 
 ```
 
+ 
 
-#### PFOS uptake  
+ 
+
+#### PFOS uptake 
+
+ 
 
 ```{r}
+
+ 
 
 summary(lm(log(conc3)~day, data = toad%>%filter(day%in%c(0:7)&tissue=="Liver"&PFAS=="PFOS")))
 
+ 
+
 ```
 
+ 
 
+ 
 
-#### 8:2 FTS uptake  
+ 
+
+#### 8:2 FTS uptake 
+
+ 
 
 ```{r}
+
+ 
 
 summary(lm(log(conc3)~day, data = toad%>%filter(day%in%c(0:7)&tissue=="Liver"&PFAS=="8:2 FTS")))
 
+ 
+
 ```
 
+ 
 
-### Whole body uptake via ln(concentration)~time  
+ 
 
-This analysis is fraught as concentration in tissues is f(uptake and elimination) during uptake period.  
+### Whole body uptake via ln(concentration)~time 
 
-OECD TG #305 indicates reliance on this method during "linear" portion of uptake as elimination process(es) may require activation (among others) and would inherently lag uptake.  
+ 
 
-In this case, this means estimating uptake via linear regression only between days 0 and 7.  
+This analysis is fraught as concentration in tissues is f(uptake and elimination) during uptake period. 
 
+ 
+
+OECD TG #305 indicates reliance on this method during "linear" portion of uptake as elimination process(es) may require activation (among others) and would inherently lag uptake. 
+
+ 
+
+In this case, this means estimating uptake via linear regression only between days 0 and 7. 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 ggplot(data = toad%>%filter(day%in%c(0:7)&tissue=="Whole Body"), aes(x = day, y = log(conc3))) +
+
   stat_smooth(method = "lm", se=FALSE, color="black", formula = y ~ x) +
+
   geom_point() +
+
   stat_cor(aes(label = paste(after_stat(rr.label), after_stat(p.label), sep = "~`,`~")),
+
            r.accuracy = 0.01,
+
            p.accuracy = 0.001,
+
            label.x = 0, label.y = 9, size = 3) +
+
   stat_regline_equation(aes(label = after_stat(eq.label)),
+
                         label.x = 0, label.y = 10, size = 3) +
+
   theme_classic() +
+
   facet_wrap(~fct_reorder(PFAS,log(conc3), .fun=median, .desc=T)) +
+
   labs(y="Whole Body ln(concentration, \u03BCg/kg)", x="Study Day", caption="Minimum concentration set to 0.1\n")
+
+ 
 
 ```
 
+ 
 
-#### PFOS uptake  
+ 
+
+#### PFOS uptake 
+
+ 
 
 ```{r}
+
+ 
 
 summary(lm(log(conc3)~day, data = toad%>%filter(day%in%c(0:7)&tissue=="Whole Body"&PFAS=="PFOS")))
 
+ 
+
 ```
 
+ 
 
+ 
 
-#### 8:2 FTS uptake  
+ 
+
+#### 8:2 FTS uptake 
+
+ 
 
 ```{r}
+
+ 
 
 summary(lm(log(conc3)~day, data = toad%>%filter(day%in%c(0:7)&tissue=="Whole Body"&PFAS=="8:2 FTS")))
 
+ 
+
 ```
 
+ 
 
-### Liver uptake across days 0:28 for comparative example  
+ 
 
-Very clearly lacking linearity and inclusion of multiple processes is impactful.  
+### Liver uptake across days 0:28 for comparative example 
 
+ 
 
+Very clearly lacking linearity and inclusion of multiple processes is impactful. 
+
+ 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 ggplot(data = toad%>%filter(day%in%c(0:28)&tissue=="Liver"), aes(x = day, y = log(conc3))) +
+
   stat_smooth(method = "lm", se=FALSE, color="black", formula = y ~ x) +
+
   geom_point() +
+
   stat_cor(aes(label = paste(after_stat(rr.label), after_stat(p.label), sep = "~`,`~")),
+
            r.accuracy = 0.01,
+
            p.accuracy = 0.001,
+
            label.x = 0, label.y = 9, size = 3) +
+
   stat_regline_equation(aes(label = after_stat(eq.label)),
+
                         label.x = 0, label.y = 10, size = 3) +
+
   theme_classic() +
+
   facet_wrap(~fct_reorder(PFAS,log(conc3), .fun=median, .desc=T)) +
+
   labs(y="Liver ln(concentration, \u03BCg/kg)", x="Study Day", caption="Minimum concentration set to 0.1\n")
 
+ 
+
 ```
 
-### Nonlinear Regression  
+ 
 
-The functions from Tarazona can be parameterized using starting parameter values from above linear models.  
+### Nonlinear Regression 
 
-Other starting values are needed and presented below. (Future use of the `nls()` output dictates that some values in function need to be "manually" entered rather than referencing some array of consolidated values.)  
+ 
 
-Below is the table of values used for clarity.  
+The functions from Tarazona can be parameterized using starting parameter values from above linear models. 
 
-Main concern with these approaches is reasonableness of "non-compartment/single-compartment" interpretation and confidence intervals. Current confidence intervals are from `predFit()` from `investr` package and are "Taylor-series approximations for the standard errors used in forming the intervals." Which is unclear documentation at best. Outside reading suggests that it is based on "propagating uncertainty" which is why they appear so weirdly tight at day 0 (early in the function) and basically trumpet out over time.  
+ 
 
-I expect to move to bootstrapping and develop confidence intervals via simulation, which will likely return very oddly parametric "uniform" CIs but are more human brain friendly.  
+Other starting values are needed and presented below. (Future use of the `nls()` output dictates that some values in function need to be "manually" entered rather than referencing some array of consolidated values.) 
 
-Importantly, the main reason to fit these models using this strategy is to extract parameters (and error) and create kinetic bioaccumulation factors--ratio of uptake to elimination rate. If uptake is greater than elimination by a lot, then chemicals will accumulate in an organism over time, and vice versa, if elimination is great than uptake, then a chemical will be eliminated before it can accumulate in tissues.  
+ 
 
+Below is the table of values used for clarity. 
+
+ 
+
+Main concern with these approaches is reasonableness of "non-compartment/single-compartment" interpretation and confidence intervals. Current confidence intervals are from `predFit()` from `investr` package and are "Taylor-series approximations for the standard errors used in forming the intervals." Which is unclear documentation at best. Outside reading suggests that it is based on "propagating uncertainty" which is why they appear so weirdly tight at day 0 (early in the function) and basically trumpet out over time. 
+
+ 
+
+I expect to move to bootstrapping and develop confidence intervals via simulation, which will likely return very oddly parametric "uniform" CIs but are more human brain friendly. 
+
+ 
+
+Importantly, the main reason to fit these models using this strategy is to extract parameters (and error) and create kinetic bioaccumulation factors--ratio of uptake to elimination rate. If uptake is greater than elimination by a lot, then chemicals will accumulate in an organism over time, and vice versa, if elimination is great than uptake, then a chemical will be eliminated before it can accumulate in tissues. 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 df <- toadsumm3 |>
+
   filter(day%in%c(0,28)) |>
+
   dplyr::select(PFAS, tissue,day,mean) |>
+
   pivot_wider(names_from=tissue, values_from=mean, names_expand=T)
 
+ 
+
 df$diet <- c(885.228, 885.228, 697.138, 697.138)
+
 df$elimination_liver <- c(-0.10756,-0.10756,-0.007062,-0.007062)
+
 df$elimination_wholebody <- c(-0.09099,-0.09099,-0.006588,-0.006588)
+
 df$uptake_liver <- c(0.93772,0.93772,0.14552,0.14552)
+
 df$uptake_wholebody <- c( 0.82811, 0.82811,0.26532,0.26532)
 
+ 
+
 df|>
+
   kable(digits=3)
 
+ 
+
+ 
 
 ```
 
+ 
 
-#### PFOS liver via `nls()`  
+ 
 
+#### PFOS liver via `nls()` 
 
+ 
+
+ 
+
+ 
 
 ```{r}
 
-nlspl <- nls(conc3~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*day)-exp(-k01*day)), 
-               data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"&day%in%c(0:56)), 
+ 
+
+nlspl <- nls(conc3~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*day)-exp(-k01*day)),
+
+               data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"&day%in%c(0:56)),
+
                start=list(V=0.1, k01=0.146) #,trace=T
+
              )
+
 summary(nlspl)
 
+ 
+
 nlsplpred <- data.frame(predFit(nlspl, newdata=data.frame(day=seq(from=0, to=56, by=0.1)), interval="confidence", se.fit=T, type="response"))
+
 nlsplpred$day <- c(seq(from=0,to=56,by=0.1))
+
+ 
 
 ```
 
-##### LOOCV  
+ 
 
+##### LOOCV 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 subdata <- toad%>%filter(PFAS=="PFOS"&tissue=="Liver"&day%in%c(0:56))
 
+ 
+
 y <- subdata$conc3
+
 x <- subdata$day
+
 n <- length(x)
+
+ 
 
 cvs <- rep(0,n)
 
+ 
+
 for(j in seq(n)){
+
   ys <- y[-j]
+
   xs <- x[-j]
-  d <- nls(ys~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*xs)-exp(-k01*xs)), 
+
+  d <- nls(ys~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*xs)-exp(-k01*xs)),
+
            start=list(V=0.1, k01=0.146))
+
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
+
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+
 }
 
+ 
+
 plot(y~x, pch=16, xlab='day', ylab='conc')
-d <- nls(y~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*x)-exp(-k01*x)), 
+
+d <- nls(y~259.767+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*x)-exp(-k01*x)),
+
            start=list(V=0.1, k01=0.146))
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 usr <- par("usr")
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
 
+ 
+
 (148233-159167)/148233
+
 #7% impact on prediction
+
 sqrt(sum(cvs)/n) # standard deviation of predicted errors
+
 #1-(sum(cvs)/sum((y-mean(y))^2)) #predicted R^2 DOES NOT MAKE SENSE FOR NONLINEAR MODELS! IGNORE!
+
 sd(resid(d))
+
 #summary(d)
 
+ 
+
 plot(density(cvs))
+
 plot(density(log(cvs)))
 
+cvsnls <- cvs
+
+ 
+
+plot(cvs~(resid(d)^2))
+
 plot(cvs~resid(d))
-mean((resid(d)-cvs)/resid(d))
+
+mean(((resid(d)^2)-cvs)/(resid(d)^2), na.rm=T)
+
+mean(((resid(d))-cvs)/(resid(d)), na.rm=T)
+
+ 
+
+ 
 
 subdata$cvs <- cvs
 
+ 
+
 #plot(cvs~conc3, data=subdata, log="")
+
 #plot(cvs~conc3, data=subdata, log="xy")
 
+ 
+
+ 
 
 par(mfrow=c(1,2))
+
 plot(y~x, pch=16, cex=1.5, xlab='day', ylab='conc')
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 plot(cvs~conc3, data=subdata, log="")
+
 par(mfrow=c(1,1))
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
+
+ 
 
 ```{r}
 
+ 
+
+ 
 
 #ggplot() +
+
 #  geom_ribbon(data=nlsplpred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
 #  geom_point(data=toadsumm3%>%filter(tissue=="Liver"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=median),
+
 #             size=2,alpha=0.3) +
+
 #  geom_line(data=nlsplpred,aes(x=day,y=fit.fit)) +
+
 #  theme_classic()
 
+ 
+
+ 
 
 ggplot() +
+
   geom_ribbon(data=nlsplpred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
   geom_point(data=toad%>%filter(tissue=="Liver"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=conc3),
+
              size=1.5,alpha=0.3) +
+
   geom_point(data=toadsumm3%>%filter(tissue=="Liver"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=median),
+
              size=3, color="red") +
+
   geom_line(data=nlsplpred,aes(x=day,y=fit.fit)) +
+
   theme_classic()
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
-#### 8:2 FTS liver via `nls()`  
+ 
 
+#### 8:2 FTS liver via `nls()` 
 
+ 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 nls8l <- nls(conc3~0.1+((885.228*(3/7)*k01)/(V*(k01-0.108)))*(exp(-0.108*day)-exp(-k01*day)),     #885.228
-               data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"&day%in%c(0:56)), 
+
+               data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"&day%in%c(0:56)),
+
                start=list(V=0.1, k01=0.83) #,trace=T
+
              )
+
 summary(nls8l)
 
+ 
+
 nls8lpred <- data.frame(predFit(nls8l, newdata=data.frame(day=seq(from=0, to=56, by=0.1)), interval="confidence", se.fit=T, type="response"))
+
 nls8lpred$day <- c(seq(from=0,to=56,by=0.1))
+
+ 
 
 ```
 
+ 
 
+ 
 
-##### LOOCV  
+ 
 
+##### LOOCV 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 subdata <- toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"&day%in%c(0:56))
 
+ 
+
 y <- subdata$conc3
+
 x <- subdata$day
+
 n <- length(x)
+
+ 
 
 cvs <- rep(0,n)
 
+ 
+
 for(j in seq(n)){
+
   ys <- y[-j]
+
   xs <- x[-j]
-  d <- nls(ys~0.1+((885.228*(3/7)*k01)/(V*(k01-0.108)))*(exp(-0.108*xs)-exp(-k01*xs)), 
+
+  d <- nls(ys~0.1+((885.228*(3/7)*k01)/(V*(k01-0.108)))*(exp(-0.108*xs)-exp(-k01*xs)),
+
            start=list(V=2, k01=0.05), control=list(maxiter=500))
+
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
+
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+
 }
 
+ 
+
 plot(y~x, pch=16, xlab='day', ylab='conc')
-d <- nls(y~0.1+((885.228*(3/7)*k01)/(V*(k01-0.108)))*(exp(-0.108*x)-exp(-k01*x)), 
+
+d <- nls(y~0.1+((885.228*(3/7)*k01)/(V*(k01-0.108)))*(exp(-0.108*x)-exp(-k01*x)),
+
            start=list(V=2, k01=0.05))
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 usr <- par("usr")
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
 
+ 
+
 (576.31-622.91)/576.31
+
 #8% impact on prediction
+
 sqrt(sum(cvs)/n) # standard deviation of predicted errors
+
 #1-(sum(cvs)/sum((y-mean(y))^2)) #predicted R^2 DOES NOT MAKE SENSE FOR NONLINEAR MODELS! IGNORE!
+
 sd(resid(d))
+
 #summary(d)
 
+ 
+
 plot(density(cvs))
+
 plot(density(log(cvs)))
+
+ 
 
 plot(resid(d)~cvs)
 
+ 
+
 subdata$cvs <- cvs
 
+ 
+
 #plot(cvs~conc3, data=subdata, log="")
+
 #plot(cvs~conc3, data=subdata, log="xy")
 
+ 
+
+ 
 
 par(mfrow=c(1,2))
+
 plot(y~x, pch=16, xlab='day', ylab='conc', log="")
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 plot(cvs~conc3, data=subdata, log="")
+
 par(mfrow=c(1,1))
 
+ 
+
+ 
 
 ```
 
+ 
+
+ 
 
 ```{r}
 
+ 
+
+ 
 
 #ggplot() +
+
 #  geom_ribbon(data=nlsplpred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
 #  geom_point(data=toadsumm3%>%filter(tissue=="Liver"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=median),
+
 #             size=2,alpha=0.3) +
+
 #  geom_line(data=nlsplpred,aes(x=day,y=fit.fit)) +
+
 #  theme_classic()
 
+ 
+
+ 
 
 ggplot() +
+
   geom_ribbon(data=nls8lpred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
   geom_point(data=toad%>%filter(tissue=="Liver"&PFAS=="8:2 FTS"&day%in%c(0:56)),aes(x=day,y=conc3),
+
              size=1.5,alpha=0.3) +
+
   geom_point(data=toadsumm3%>%filter(tissue=="Liver"&PFAS=="8:2 FTS"&day%in%c(0:56)),aes(x=day,y=median),
+
              size=3, color="red") +
+
   geom_line(data=nls8lpred,aes(x=day,y=fit.fit)) +
+
   theme_classic()
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
-#### PFOS Whole Body via `nls()`  
+ 
 
+#### PFOS Whole Body via `nls()` 
 
+ 
+
+ 
+
+ 
 
 ```{r}
 
-nlspw <- nls(conc3~26.568+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*day)-exp(-k01*day)), 
-               data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"&day%in%c(0:56)), 
+ 
+
+nlspw <- nls(conc3~26.568+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*day)-exp(-k01*day)),
+
+               data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"&day%in%c(0:56)),
+
                start=list(V=0.1, k01=0.265) #,trace=T
+
              )
+
 summary(nlspw)
 
+ 
+
 nlspwpred <- data.frame(predFit(nlspw, newdata=data.frame(day=seq(from=0, to=56, by=0.1)), interval="confidence", se.fit=T, type="response"))
+
 nlspwpred$day <- c(seq(from=0,to=56,by=0.1))
+
+ 
 
 ```
 
+ 
 
+ 
 
-##### LOOCV  
+ 
 
+##### LOOCV 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 subdata <- toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"&day%in%c(0:56))
 
+ 
+
 y <- subdata$conc3
+
 x <- subdata$day
+
 n <- length(x)
+
+ 
 
 cvs <- rep(0,n)
 
+ 
+
 for(j in seq(n)){
+
   ys <- y[-j]
+
   xs <- x[-j]
-  d <- nls(ys~26.568+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*xs)-exp(-k01*xs)), 
+
+  d <- nls(ys~26.568+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*xs)-exp(-k01*xs)),
+
            start=list(V=0.1, k01=0.265))
+
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
+
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+
 }
 
+ 
+
 plot(y~x, pch=16, xlab='day', ylab='conc')
-d <- nls(y~26.568+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*x)-exp(-k01*x)), 
+
+d <- nls(y~26.568+((697.138*(3/7)*k01)/(V*(k01-0.007)))*(exp(-0.007*x)-exp(-k01*x)),
+
            start=list(V=0.1, k01=0.265))
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 usr <- par("usr")
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
 
+ 
+
 (32032.03-34937.14)/32032.03
+
 #9% impact on prediction
 
+ 
+
 plot(density(cvs))
+
 plot(density(log(cvs)))
+
+ 
 
 subdata$cvs <- cvs
 
+ 
+
 #plot(cvs~conc3, data=subdata, log="")
+
 #plot(cvs~conc3, data=subdata, log="xy")
 
+ 
+
+ 
 
 par(mfrow=c(1,2))
+
 plot(y~x, pch=16, xlab='day', ylab='conc')
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 plot(cvs~conc3, data=subdata, log="")
+
 par(mfrow=c(1,1))
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
+
+ 
 
 ```{r}
 
+ 
+
+ 
 
 #ggplot() +
+
 #  geom_ribbon(data=nlsplpred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
 #  geom_point(data=toadsumm3%>%filter(tissue=="Liver"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=median),
+
 #             size=2,alpha=0.3) +
+
 #  geom_line(data=nlsplpred,aes(x=day,y=fit.fit)) +
+
 #  theme_classic()
 
+ 
+
+ 
 
 ggplot() +
+
   geom_ribbon(data=nlspwpred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
   geom_point(data=toad%>%filter(tissue=="Whole Body"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=conc3),
+
              size=1.5,alpha=0.3) +
+
   geom_point(data=toadsumm3%>%filter(tissue=="Whole Body"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=median),
+
              size=3, color="red") +
+
   geom_line(data=nlspwpred,aes(x=day,y=fit.fit)) +
+
   theme_classic()
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
-#### 8:2 FTS Whole Body via `nls()`  
+ 
 
+#### 8:2 FTS Whole Body via `nls()` 
 
+ 
+
+ 
+
+ 
 
 ```{r}
 
-nls8l <- nls(conc3~0.1+((885.228*(3/7)*k01)/(V*(k01-0.091)))*(exp(-0.091*day)-exp(-k01*day)), 
-               data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Whole Body"&day%in%c(0:56)), 
+ 
+
+nls8l <- nls(conc3~0.1+((885.228*(3/7)*k01)/(V*(k01-0.091)))*(exp(-0.091*day)-exp(-k01*day)),
+
+               data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Whole Body"&day%in%c(0:56)),
+
                start=list(V=0.1, k01=0.828) #,trace=T
+
              )
+
 summary(nls8l)
 
+ 
+
 nls8lpred <- data.frame(predFit(nls8l, newdata=data.frame(day=seq(from=0, to=56, by=0.1)), interval="confidence", se.fit=T, type="response"))
+
 nls8lpred$day <- c(seq(from=0,to=56,by=0.1))
+
+ 
 
 ```
 
+ 
 
-##### LOOCV  
+ 
 
+##### LOOCV 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 subdata <- toad%>%filter(PFAS=="8:2 FTS"&tissue=="Whole Body"&day%in%c(0:56))
 
+ 
+
 y <- subdata$conc3
+
 x <- subdata$day
+
 n <- length(x)
+
+ 
 
 cvs <- rep(0,n)
 
+ 
+
 for(j in seq(n)){
+
   ys <- y[-j]
+
   xs <- x[-j]
-  d <- nls(ys~0.1+((885.228*(3/7)*k01)/(V*(k01-0.091)))*(exp(-0.091*xs)-exp(-k01*xs)), 
+
+  d <- nls(ys~0.1+((885.228*(3/7)*k01)/(V*(k01-0.091)))*(exp(-0.091*xs)-exp(-k01*xs)),
+
            start=list(V=0.1, k01=0.828))
+
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
+
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+
 }
 
+ 
+
 plot(y~x, pch=16, xlab='day', ylab='conc')
-d <- nls(y~0.1+((885.228*(3/7)*k01)/(V*(k01-0.091)))*(exp(-0.091*x)-exp(-k01*x)), 
+
+d <- nls(y~0.1+((885.228*(3/7)*k01)/(V*(k01-0.091)))*(exp(-0.091*x)-exp(-k01*x)),
+
            start=list(V=0.1, k01=0.828))
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 usr <- par("usr")
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
 
+ 
+
 (532.07-599.58)/532.07
+
 #12.7% impact on prediction
 
+ 
+
 plot(density(cvs))
+
 plot(density(log(cvs)))
+
+ 
 
 subdata$cvs <- cvs
 
+ 
+
 #plot(cvs~conc3, data=subdata, log="")
+
 #plot(cvs~conc3, data=subdata, log="xy")
 
+ 
+
+ 
 
 par(mfrow=c(1,2))
+
 plot(y~x, pch=16, xlab='day', ylab='conc')
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 plot(cvs~conc3, data=subdata, log="")
+
 par(mfrow=c(1,1))
 
+ 
+
+ 
 
 ```
 
+ 
+
+ 
 
 ```{r}
 
+ 
+
+ 
 
 #ggplot() +
+
 #  geom_ribbon(data=nlsplpred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
 #  geom_point(data=toadsumm3%>%filter(tissue=="Liver"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=median),
+
 #             size=2,alpha=0.3) +
+
 #  geom_line(data=nlsplpred,aes(x=day,y=fit.fit)) +
+
 #  theme_classic()
 
+ 
+
+ 
 
 ggplot() +
+
   geom_ribbon(data=nls8lpred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
   geom_point(data=toad%>%filter(tissue=="Whole Body"&PFAS=="8:2 FTS"&day%in%c(0:56)),aes(x=day,y=conc3),
+
              size=1.5,alpha=0.3) +
+
   geom_point(data=toadsumm3%>%filter(tissue=="Whole Body"&PFAS=="8:2 FTS"&day%in%c(0:56)),aes(x=day,y=median),
+
              size=3, color="red") +
+
   geom_line(data=nls8lpred,aes(x=day,y=fit.fit)) +
+
   theme_classic()
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
-#### PFOS liver up and down params via `nls()`?  
+ 
 
-Starts based on combo of OECD linear and `nls()`.  
+#### PFOS liver up and down params via `nls()`? 
 
-Does not work very well, too noisy or too simple?  
+ 
 
-Either way, equal uptake and elimination does not make sense.  
+Starts based on combo of OECD linear and `nls()`. 
+
+ 
+
+Does not work very well, too noisy or too simple? 
+
+ 
+
+Either way, equal uptake and elimination does not make sense. 
+
+ 
 
 ```{r}
 
-nlspl2 <- nlsLM(conc3~259.767+((697.138*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*day)-exp(-k01*day)), 
-               data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"&day%in%c(0:56)), 
+ 
+
+nlspl2 <- nlsLM(conc3~259.767+((697.138*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*day)-exp(-k01*day)),
+
+               data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"&day%in%c(0:56)),
+
                start=list(V=0.5, k01=0.057, k10=0.007) #,trace=T, algorithm="port",control=list(minFactor=1e-20, maxiter=100, warnOnly=T)
+
              )
+
 summary(nlspl2)
 
+ 
+
 nlspl2pred <- data.frame(predFit(nlspl2, newdata=data.frame(day=seq(from=0, to=56, by=0.1)), interval="confidence", se.fit=T, type="response"))
+
 nlspl2pred$day <- c(seq(from=0,to=56,by=0.1))
+
+ 
 
 ```
 
+ 
 
+ 
 
-##### LOOCV  
+ 
 
+##### LOOCV 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 subdata <- toad%>%filter(PFAS=="PFOS"&tissue=="Liver"&day%in%c(0:56))
 
+ 
+
 y <- subdata$conc3
+
 x <- subdata$day
+
 n <- length(x)
+
+ 
 
 cvs <- rep(0,n)
 
+ 
+
 for(j in seq(n)){
+
   ys <- y[-j]
+
   xs <- x[-j]
-  d <- nlsLM(ys~259.767+((697.138*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*xs)-exp(-k01*xs)), 
+
+  d <- nlsLM(ys~259.767+((697.138*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*xs)-exp(-k01*xs)),
+
            start=list(V=0.5, k01=0.057, k10=0.007))
+
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
+
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+
 }
 
+ 
+
 plot(y~x, pch=16, xlab='day', ylab='conc')
-d <- nlsLM(y~259.767+((697.138*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*x)-exp(-k01*x)), 
+
+d <- nlsLM(y~259.767+((697.138*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*x)-exp(-k01*x)),
+
            start=list(V=0.5, k01=0.057, k10=0.007))
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 usr <- par("usr")
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
 
+ 
+
 (146101-157617)/146101
+
 #7.9% impact on prediction
 
+ 
+
 plot(density(cvs))
+
 plot(density(log(cvs)))
+
+ 
 
 subdata$cvs <- cvs
 
+ 
+
 #plot(cvs~conc3, data=subdata, log="")
+
 #plot(cvs~conc3, data=subdata, log="xy")
 
+ 
+
+ 
 
 par(mfrow=c(1,2))
+
 plot(y~x, pch=16, xlab='day', ylab='conc')
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 plot(cvs~conc3, data=subdata, log="")
+
 par(mfrow=c(1,1))
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
+
+ 
 
 ```{r}
 
+ 
+
+ 
 
 #ggplot() +
+
 #  geom_ribbon(data=nlsplpred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
 #  geom_point(data=toadsumm3%>%filter(tissue=="Liver"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=median),
+
 #             size=2,alpha=0.3) +
+
 #  geom_line(data=nlsplpred,aes(x=day,y=fit.fit)) +
+
 #  theme_classic()
 
+ 
+
+ 
 
 ggplot() +
+
   geom_ribbon(data=nlspl2pred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
   geom_point(data=toad%>%filter(tissue=="Liver"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=conc3),
+
              size=1.5,alpha=0.3) +
+
   geom_point(data=toadsumm3%>%filter(tissue=="Liver"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=median),
+
              size=3, color="red") +
+
   geom_line(data=nlspl2pred,aes(x=day,y=fit.fit)) +
+
   theme_classic()
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
+ 
 
-#### 8:2 FTS liver up and down params via `nls()`?  
+ 
 
-Starts based on combo of OECD linear and `nls()`.  
+#### 8:2 FTS liver up and down params via `nls()`? 
 
-Does not work very well, too noisy or too simple?  
+ 
 
-Either way, equal uptake and elimination does not make sense.  
+Starts based on combo of OECD linear and `nls()`. 
+
+ 
+
+Does not work very well, too noisy or too simple? 
+
+ 
+
+Either way, equal uptake and elimination does not make sense. 
+
+ 
 
 ```{r}
 
+ 
 
-# 0.1+((885.228*k01)/(V*(k01-0.108)))*(exp(-0.108*xs)-exp(-k01*xs)), 
+ 
+
+# 0.1+((885.228*k01)/(V*(k01-0.108)))*(exp(-0.108*xs)-exp(-k01*xs)),
+
 #           start=list(V=2, k01=0.05)
 
+ 
 
+ 
 
+ 
 
-nls8l2 <- nlsLM(conc3~0.1+((885.228*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*day)-exp(-k01*day)), 
-               data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"&day%in%c(0:56)), 
+ 
+
+nls8l2 <- nlsLM(conc3~0.1+((885.228*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*day)-exp(-k01*day)),
+
+               data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"&day%in%c(0:56)),
+
                start=list(V=2, k01=0.05, k10=0.108) #,trace=T, algorithm="port",control=list(minFactor=1e-20, maxiter=100, warnOnly=T)
+
              )
+
 summary(nls8l2)
 
+ 
+
 nls8l2pred <- data.frame(predFit(nls8l2, newdata=data.frame(day=seq(from=0, to=56, by=0.1)), interval="confidence", se.fit=T, type="response"))
+
 nls8l2pred$day <- c(seq(from=0,to=56,by=0.1))
+
+ 
 
 ```
 
+ 
 
+ 
 
-##### LOOCV  
+ 
 
+##### LOOCV 
+
+ 
+
+ 
 
 ```{r}
+
+ 
 
 subdata <- toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"&day%in%c(0:56))
 
+ 
+
 y <- subdata$conc3
+
 x <- subdata$day
+
 n <- length(x)
+
+ 
 
 cvs <- rep(0,n)
 
+ 
+
 for(j in seq(n)){
+
   ys <- y[-j]
+
   xs <- x[-j]
-  d <- nlsLM(ys~0.1+((885.228*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*xs)-exp(-k01*xs)), 
+
+  d <- nlsLM(ys~0.1+((885.228*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*xs)-exp(-k01*xs)),
+
            start=list(V=2, k01=0.05, k10=0.108))
+
   cvs[j] <- (y[j]-predict(d,data.frame(xs=x[j])))^2
+
   print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+
 }
 
+ 
+
 plot(y~x, pch=16, xlab='day', ylab='conc')
-d <- nlsLM(y~0.1+((885.228*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*x)-exp(-k01*x)), 
+
+d <- nlsLM(y~0.1+((885.228*(3/7)*k01)/(V*(k01-k10)))*(exp(-k10*x)-exp(-k01*x)),
+
            start=list(V=2, k01=0.05, k10=0.108))
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 usr <- par("usr")
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.9*(usr[4]-usr[3]), paste("LOO MSE", "=", round(mean(cvs), 5)), pos=2)
+
 text(usr[1] + 0.9*(usr[2]-usr[1]), usr[3] + 0.8*(usr[4]-usr[3]), paste("MSE", "=", round(mean(resid(d)^2), 5)), pos=2)
 
+ 
+
 (561.65-609.42)/561.65
+
 #8.5% impact on prediction
 
+ 
+
 plot(density(cvs))
+
 plot(density(log(cvs)))
+
+ 
 
 subdata$cvs <- cvs
 
+ 
+
 #plot(cvs~conc3, data=subdata, log="")
+
 #plot(cvs~conc3, data=subdata, log="xy")
 
+ 
+
+ 
 
 par(mfrow=c(1,2))
+
 plot(y~x, pch=16, xlab='day', ylab='conc')
+
 lines(predict(d)[order(x)]~sort(x), lwd=1, col='black')
+
 plot(cvs~conc3, data=subdata, log="")
+
 par(mfrow=c(1,1))
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
+
+ 
 
 ```{r}
 
+ 
+
+ 
 
 #ggplot() +
+
 #  geom_ribbon(data=nlsplpred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
 #  geom_point(data=toadsumm3%>%filter(tissue=="Liver"&PFAS=="PFOS"&day%in%c(0:56)),aes(x=day,y=median),
+
 #             size=2,alpha=0.3) +
+
 #  geom_line(data=nlsplpred,aes(x=day,y=fit.fit)) +
+
 #  theme_classic()
 
+ 
+
+ 
 
 ggplot() +
+
   geom_ribbon(data=nls8l2pred,aes(x=day,ymin=fit.lwr,ymax=fit.upr),alpha=0.25) +
+
   geom_point(data=toad%>%filter(tissue=="Liver"&PFAS=="8:2 FTS"&day%in%c(0:56)),aes(x=day,y=conc3),
+
              size=1.5,alpha=0.3) +
+
   geom_point(data=toadsumm3%>%filter(tissue=="Liver"&PFAS=="8:2 FTS"&day%in%c(0:56)),aes(x=day,y=median),
+
              size=3, color="red") +
+
   geom_line(data=nls8l2pred,aes(x=day,y=fit.fit)) +
+
   theme_classic()
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
+ 
 
-#### PFOS liver via `rbioacc`  
+ 
+
+#### PFOS liver via `rbioacc` 
+
+ 
 
 ```{r}
+
+ 
 
 #697.138*(3/7)
 
-dataf <- toad |> 
+ 
+
+dataf <- toad |>
+
   filter(tissue=="Liver"&PFAS=="PFOS") |>
+
   dplyr::select(toadID, day, conc3) |>
+
   rename(time=day,
+
          conc=conc3) |>
+
   mutate(expf=298,
+
          replicate=toadID)
 
-modeldf <- modelData(dataf, time_accumulation=28)  
+ 
+
+modeldf <- modelData(dataf, time_accumulation=28) 
+
 fitmoddf <- fitTK(modeldf, iter=50000)
 
+ 
+
 plot(fitmoddf)
+
 quantile_table(fitmoddf)
+
 mean(bioacc_metric(fitmoddf)$BMFk)
+
 median(bioacc_metric(fitmoddf)$BMFk)
+
 plot(density(bioacc_metric(fitmoddf)$BMFk))
+
 plot(density(log(bioacc_metric(fitmoddf)$BMFk)))
+
 t95(fitmoddf)
 
+ 
 
+ 
+
+ 
 
 ```
 
+ 
 
-#### 8:2 FTS liver via `rbioacc`  
+ 
+
+#### 8:2 FTS liver via `rbioacc` 
+
+ 
 
 ```{r}
+
+ 
 
 #885.228*(3/7)
 
-dataf <- toad |> 
+ 
+
+dataf <- toad |>
+
   filter(tissue=="Liver"&PFAS=="8:2 FTS") |>
+
   dplyr::select(toadID, day, conc3) |>
+
   rename(time=day,
+
          conc=conc3) |>
+
   mutate(expf=379,
+
          replicate=as.numeric(factor(toadID)))
 
-modeldf <- modelData(dataf, time_accumulation=28)  
+ 
+
+modeldf <- modelData(dataf, time_accumulation=28) 
+
 fitmoddf <- fitTK(modeldf, iter=50000)
 
+ 
+
 plot(fitmoddf)
+
 quantile_table(fitmoddf)
+
 mean(bioacc_metric(fitmoddf)$BMFk)
+
 median(bioacc_metric(fitmoddf)$BMFk)
+
 plot(density(bioacc_metric(fitmoddf)$BMFk))
+
 t95(fitmoddf)
 
+ 
 
+ 
+
+ 
 
 ```
 
+ 
 
+ 
 
+ 
 
+ 
 
+ 
 
-### Dynamic Compartment Model  
+ 
 
-Tarazona has function for dynamic single compartment, which is great, but as we have both, we not try to model the flow?  
+### Dynamic Compartment Model 
 
-Concerns include the lack of mass balance (no blood and no tissue mass or volume measurements).  
+ 
 
-Other concerns include assumption of model flows.  
+Tarazona has function for dynamic single compartment, which is great, but as we have both, we not try to model the flow? 
 
+ 
 
+Concerns include the lack of mass balance (no blood and no tissue mass or volume measurements). 
 
-#### PFOS liver and whole body ODE  
+ 
 
-PFOS predicts fit liver data well, but not whole body.  
+Other concerns include assumption of model flows. 
+
+ 
+
+ 
+
+ 
+
+#### PFOS liver and whole body ODE 
+
+ 
+
+PFOS predicts fit liver data well, but not whole body. 
+
+ 
 
 ```{r}
+
+ 
+
+ 
+
+pkmodel <- function(time, state, parmeters) {
+
+  with(as.list(c(state, parmeters)), {
+
+    dbod <- k21*liv-k12*bod-kel*bod
+
+    dliv <- k12*bod-k21*liv#-kel2*liv
+
+    list(c(dbod, dliv))
+
+  })
+
+}
+
+ 
+
+state <- c(bod = 26.568, liv = 259.767) # initial concs
+
+parmeters <- c(k12 = 0.146,
+
+               k21 = 0.007,
+
+               kel = 0.007)#,
+
+               #kel2 = 0.1)
+
+times <- seq(0, 56, by=1) # start points to end points
+
+dose_data <- data.frame(
+
+  var=c("bod"),
+
+  time=c(0,2,5,7,9,12,14,16,19,21,23,26),
+
+  value=c(as.numeric(697.138*0.169)),
+
+  method="add"
+
+)
+
+ 
+
+ 
+
+ 
+
+ 
+
+# calcuate differential equation with parameters
+
+# and initialized state values
+
+#out <- ode(y = state,
+
+#           times = times,
+
+#           func = pkmodel,
+
+#           parms = parmeters,
+
+#           events = list(data=dose_data))
+
+#out <- as.data.frame(out)
+
+#
+
+#par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
+
+#plot(out$time,
+
+#     out$liv,
+
+#     xlab = "Time (day)",
+
+#     ylab= "PFOS Concentration (ug/kg)",
+
+#     type = 'l',ylim=c(0,2750), bty="l")
+
+#points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"), col="black", pch=4)
+
+#legend("topleft", c("Whole Body (minus liver)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
+
+#plot(out$time,
+
+#     out$bod,
+
+#     type="l",
+
+#     lty=2,
+
+#     col="red",
+
+#     xlab = "Time (day)",
+
+#     ylab= "PFOS Concentration (ug/kg)",
+
+#     ylim=c(0,2750), bty="l")
+
+#points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"), col="red", pch=3)
+
+#par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
+
+ 
+
+ 
+
+#dat <- data.frame(
+
+#  time=seq(0,56,7),
+
+#  liv=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%group_by(day)%>%summarize(liv=mean(conc2))%>%ungroup()%>%dplyr::select(liv),
+
+#  bod=toad%>%filter(PFAS=="PFOS"&tissue=="wholebody")%>%group_by(day)%>%summarize(bod=mean(conc2))%>%ungroup()%>%dplyr::select(bod)
+
+#  #time=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%dplyr::select(day)%>%dplyr::rename(time=day),
+
+#  time=toad$day[toad$PFAS=="PFOS"&toad$tissue=="liver"],
+
+#  #liv=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%dplyr::select(conc2)%>%dplyr::rename(liv=conc2),
+
+#  liv=toad$conc2[toad$PFAS=="PFOS"&toad$tissue=="liver"],
+
+#  #bod=toad%>%filter(PFAS=="PFOS"&tissue=="wholebody")%>%dplyr::select(conc2)%>%dplyr::rename(bod=conc2)
+
+#  bod=toad$conc2[toad$PFAS=="PFOS"&toad$tissue=="wholebody"]
+
+#)
+
+ 
+
+dat <- toad %>%
+
+  filter(PFAS=="PFOS") %>%
+  #filter(day!=28) %>%
+
+  group_by(tissue,day,toadID) %>%
+
+  summarize(conc=mean(conc3)) %>%
+
+  pivot_wider(names_from=tissue, values_from=conc) %>%
+
+  rename(liv=Liver,
+
+         bod=`Whole Body`,
+
+         time=day) %>%
+
+  dplyr::select(-toadID) %>%
+
+  ungroup() %>%
+
+  data.frame()
+
+ 
+
+ 
+
+cost <- function(p,e) {
+
+  out <- ode(y = state,
+
+             times = times,
+
+             func = pkmodel,
+
+             parms = p,
+
+             events = list(data=e))
+
+  modCost(out,dat, weight="none") # put this inside the LOOCV
+
+}
+
+ 
+
+fit <- modFit(f=cost, p=parmeters, e=dose_data,  lower=0, upper=1)
+
+summary(fit)
+
+ 
+
+out2 <- ode(y = state,
+
+            times = times,
+
+            func = pkmodel,
+
+            parms = coef(fit),
+
+            events = list(data=dose_data)) # or does LOOCV have to run all the way through here?
+
+ 
+
+#plot(out2, obs=dat)
+
+ 
+
+par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
+
+plot(out2,
+
+     which="liv",
+
+     mfrow=NULL,
+
+     xlab = "Time (day)",
+
+     ylab= "PFOS Concentration (ug/kg)",
+
+     ylim=c(0,2750), bty="l", type="l",
+
+     main="")
+
+points(liv~time, data=dat, col="black", pch=4)
+
+legend("topleft", c("Whole Body\n(minus liver and blood)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
+
+plot(out2,
+
+     which="bod",
+
+     mfrow=NULL,
+
+     type="l",
+
+     lty=2,
+
+     col="red",
+
+     xlab = "Time (day)",
+
+     ylab= "PFOS Concentration (ug/kg)",
+
+     ylim=c(0,1000), bty="l",
+
+     main="")
+
+points(bod~time, data=dat, col="red", pch=3)
+
+par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
+
+ 
+
+cost2 <- function(p,e, data, ...) {
+
+  #yy <- p[c("bod","liv")]
+
+  pp <- p[c("k12","k21","kel")]#,"kel2")]
+
+  out <- ode(y = state,
+
+             times = times,
+
+             func = pkmodel,
+
+             parms = pp,
+
+             events = list(data=e))
+
+  modCost(out,dat, ...)
+
+}
+
+ 
+
+parmeters2 <- c(#bod=1, liv=250,
+
+                k12 = 0.146,
+
+                k21 = 0.007,
+
+                kel = 0.007)#,
+
+                #kel2=0.01)
+
+ 
+
+fit2 <- modFit(f=cost2, p=parmeters2, e=dose_data, data=dat,  lower=0, upper=1)
+
+ 
+
+summary(fit2)
+
+ 
+
+out23 <- ode(y = state,
+
+            times = times,
+
+            func = pkmodel,
+
+            parms = coef(fit2),
+
+            events = list(data=dose_data))
+
+ 
+
+#plot(out23, obs=dat)
+
+ 
+
+par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
+
+plot(out23,
+
+     which="liv",
+
+     mfrow=NULL,
+
+     xlab = "Time (day)",
+
+     ylab= "PFOS Concentration [\u03BCg/kg]",
+
+     ylim=c(0,3000), bty="l", type="l",
+
+     main="")
+
+points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"), col="black", pch=4)
+
+legend("topleft", c("Whole Body\n(minus liver and blood)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
+
+plot(out23,
+
+     which="bod",
+
+     mfrow=NULL,
+
+     type="l",
+
+     lty=2,
+
+     col="red",
+
+     xlab = "Time (day)",
+
+     ylab= "PFOS Concentration [\u03BCg/kg]",
+
+     ylim=c(0,1000), bty="l",
+
+     main="")
+
+points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"), col="red", pch=3)
+
+par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
+
+ 
+
+```
+
+ 
+ #### PFOS liver and whole body ODE with FAMoS fitting  
+ 
+ 
+```{r}
+
 
 
 pkmodel <- function(time, state, parmeters) {
@@ -1258,65 +2817,30 @@ pkmodel <- function(time, state, parmeters) {
   })
 }
 
+ 
+
 state <- c(bod = 26.568, liv = 259.767) # initial concs
+
 parmeters <- c(k12 = 0.146,
                k21 = 0.007,
                kel = 0.007)#,
-               #kel2 = 0.1) 
+               #kel2 = 0.1)
+
 times <- seq(0, 56, by=1) # start points to end points
+
 dose_data <- data.frame(
-  var=c("bod","liv"),
-  time=c(0,0,2,2,5,5,7,7,9,9,12,12,14,14,16,16,19,19,21,21,23,23,26,26),
-  value=c(as.numeric(697.138*0.5),as.numeric(697.138*0.001)),
+  var=c("bod"),
+  time=c(0,2,5,7,9,12,14,16,19,21,23,26),
+  value=c(as.numeric(697.138*0.169)),
   method="add"
 )
 
-
-
-
-# calcuate differential equation with parameters
-# and initialized state values
-#out <- ode(y = state, 
-#           times = times, 
-#           func = pkmodel, 
-#           parms = parmeters,
-#           events = list(data=dose_data)) 
-#out <- as.data.frame(out)
-#
-#par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
-#plot(out$time, 
-#     out$liv, 
-#     xlab = "Time (day)", 
-#     ylab= "PFOS Concentration (ug/kg)", 
-#     type = 'l',ylim=c(0,2750), bty="l")
-#points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"), col="black", pch=4)
-#legend("topleft", c("Whole Body (minus liver)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
-#plot(out$time,
-#     out$bod,
-#     type="l",
-#     lty=2,
-#     col="red", 
-#     xlab = "Time (day)", 
-#     ylab= "PFOS Concentration (ug/kg)", 
-#     ylim=c(0,2750), bty="l")
-#points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"), col="red", pch=3)
-#par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
-
-
-#dat <- data.frame(
-#  time=seq(0,56,7),
-#  liv=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%group_by(day)%>%summarize(liv=mean(conc2))%>%ungroup()%>%dplyr::select(liv),
-#  bod=toad%>%filter(PFAS=="PFOS"&tissue=="wholebody")%>%group_by(day)%>%summarize(bod=mean(conc2))%>%ungroup()%>%dplyr::select(bod)
-#  #time=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%dplyr::select(day)%>%dplyr::rename(time=day),
-#  time=toad$day[toad$PFAS=="PFOS"&toad$tissue=="liver"],
-#  #liv=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%dplyr::select(conc2)%>%dplyr::rename(liv=conc2),
-#  liv=toad$conc2[toad$PFAS=="PFOS"&toad$tissue=="liver"],
-#  #bod=toad%>%filter(PFAS=="PFOS"&tissue=="wholebody")%>%dplyr::select(conc2)%>%dplyr::rename(bod=conc2)
-#  bod=toad$conc2[toad$PFAS=="PFOS"&toad$tissue=="wholebody"]
-#)
+ 
+ 
 
 dat <- toad %>%
   filter(PFAS=="PFOS") %>%
+  #filter(day!=28) %>%
   group_by(tissue,day,toadID) %>%
   summarize(conc=mean(conc3)) %>%
   pivot_wider(names_from=tissue, values_from=conc) %>%
@@ -1327,593 +2851,1190 @@ dat <- toad %>%
   ungroup() %>%
   data.frame()
 
+ 
+sim.data <- lsoda(y = state, 
+                  times = times, 
+                  func = pkmodel, 
+                  parms = parmeters,
+                  events = dose_data)
+ 
 
-cost <- function(p,e) {
-  out <- ode(y = state, 
-             times = times, 
-             func = pkmodel, 
-             parms = p,
-             events = list(data=e))
-  modCost(out,dat, weight="none") # put this inside the LOOCV
-}
-
-fit <- modFit(f=cost, p=parmeters, e=dose_data) 
-summary(fit)
-
-out2 <- ode(y = state, 
-            times = times, 
-            func = pkmodel, 
-            parms = coef(fit),
-            events = list(data=dose_data)) # or does LOOCV have to run all the way through here?
-
-#plot(out2, obs=dat)
-
-par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
-plot(out2,
-     which="liv",
-     mfrow=NULL,
-     xlab = "Time (day)", 
-     ylab= "PFOS Concentration (ug/kg)", 
-     ylim=c(0,2750), bty="l", type="l",
-     main="")
-points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"), col="black", pch=4)
-legend("topleft", c("Whole Body\n(minus liver and blood)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
-plot(out2,
-     which="bod",
-     mfrow=NULL,
-     type="l",
-     lty=2,
-     col="red", 
-     xlab = "Time (day)", 
-     ylab= "PFOS Concentration (ug/kg)", 
-     ylim=c(0,1000), bty="l",
-     main="")
-points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"), col="red", pch=3)
-par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
-
-cost2 <- function(p,e, data, ...) {
-  #yy <- p[c("bod","liv")]
-  pp <- p[c("k12","k21","kel")]#,"kel2")]
-  out <- ode(y = state, 
-             times = times, 
-             func = pkmodel, 
-             parms = pp,
-             events = list(data=e))
-  modCost(out,dat, ...)
-}
-
-parmeters2 <- c(#bod=1, liv=250,
-                k12 = 0.146,
-                k21 = 0.007,
-                kel = 0.007)#,
-                #kel2=0.01) 
-
-fit2 <- modFit(f=cost2, p=parmeters2, e=dose_data, data=dat, method="Marq")
-
-summary(fit2)
-
-out23 <- ode(y = state, 
-            times = times, 
-            func = pkmodel, 
-            parms = coef(fit2),
-            events = list(data=dose_data)) 
-
-#plot(out23, obs=dat)
-
-par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
-plot(out23,
-     which="liv",
-     mfrow=NULL,
-     xlab = "Time (day)", 
-     ylab= "PFOS Concentration [\u03BCg/kg]", 
-     ylim=c(0,3000), bty="l", type="l",
-     main="")
-points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"), col="black", pch=4)
-legend("topleft", c("Whole Body\n(minus liver and blood)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
-plot(out23,
-     which="bod",
-     mfrow=NULL,
-     type="l",
-     lty=2,
-     col="red", 
-     xlab = "Time (day)", 
-     ylab= "PFOS Concentration [\u03BCg/kg]", 
-     ylim=c(0,1000), bty="l",
-     main="")
-points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"), col="red", pch=3)
-par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
-
-```
-
-
-
-##### PFOS liver and whole body ODE not good one-liner  
-
-```{r}
-
-#pkmodel <- function(time, state, parmeters) {
-#  with(as.list(c(state, parmeters)), {
-#    dbod <- k21*liv-k12*bod-kel*bod
-#    dliv <- k12*bod-k21*liv#-kel2*liv
-#    list(c(dbod, dliv))
-#  })
-#}
-#
-#c(bod = 26.568, liv = 259.767)
-
-
-
-soln <- integrateODE(dliv~k12*bod-k21*liv, dbod~342+k21*liv-k12*bod-kel*bod, k12=0.095, k21=0.015, kel=0.414, domain(t=0:28), liv=260, bod=27)
-plot(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"), col="black", pch=4)
-points(c(1:28),soln$liv(c(1:28)), type="l")
-points(c(28:56),c(soln$liv(28)-exp(0.015*(0:28))), type="l")
-
-plot(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"), col="red", pch=4)
-points(c(1:28),soln$bod(c(1:28)), type="l")
-points(c(28:56),c(soln$bod(28)-exp(0.006*(0:28))), type="l")
-
-
-```
-
-
-
-#### PFOS liver and whole body ODE LOOCV  
-
-Appears to be an improvement?  
-
-7% vs 2%
-
-```{r}
-
-
-subdat <- toad %>%
-  filter(PFAS=="PFOS") %>%
-  group_by(tissue,day,toadID) %>%
-  summarize(conc=mean(conc3)) %>%
-  pivot_wider(names_from=tissue, values_from=conc) %>%
-  rename(liv=Liver,
-         bod=`Whole Body`,
-         time=day) %>%
-  dplyr::select(-toadID) %>%
-  ungroup() %>%
-  data.frame()
-
-pkmodel <- function(time, state, parmeters) {  # two compartment ODE system model
-  with(as.list(c(state, parmeters)), {
-    dbod <- k21*liv-k12*bod-kel*bod
-    dliv <- k12*bod-k21*liv#-kel2*liv
-    list(c(dbod, dliv))
-  })
-}
-
-
-state <- c(bod = 26.568, liv = 259.767) # initial concs
-
-parmeters <- c(k12 = 0.146,
-               k21 = 0.007,
-               kel = 0.007) # initial parameter estimates from nls()/lm()
-
-times <- seq(0, 56, by=1) # start points to end points
-
-dose_data <- data.frame(                 # dosing schedule--add value to specific tissues at times
-  var=c("bod","liv"),
-  time=c(0,0,2,2,5,5,7,7,9,9,12,12,14,14,16,16,19,19,21,21,23,23,26,26),
-  value=c(as.numeric(697.138),as.numeric(697.138*0.001)),
-  method="add"
-) 
-
-
-
-n <- length(subdat$time)
-cvs <- rep(0,n)
-cvs2 <- rep(0,n)
-for(j in seq(n)){
-  sds <- subdat[-j,]
+#cost function for famos
+cost.function <- function(parms, binary, data, inits){
+  #simulate the data with the current parameter set
+  fit.data <- lsoda(y = state, 
+                    times = times, 
+                    func = pkmodel, 
+                    parms = parmeters,
+                    events = dose_data)
+  #calculate the aic
+  ls2 <- sum((sim.data[,-1] - fit.data[,-1])^2)
+  out.aic <- ls2 + 2*sum(binary == 1)
   
-  cost2 <- function(p,e) {
-    out <- ode(y = state, 
-               times = times, 
-               func = pkmodel, 
-               parms = p,
-               events = list(data=e))
-    modCost(out, sds, weight="none") 
-  }
-  fits <- modFit(f=cost2, p=parmeters, e=dose_data)
-  
-  outs <- data.frame(ode(y = state, 
-                         times = times, 
-                         func = pkmodel, 
-                         parms = coef(fits),
-                         events = list(data=dose_data)))
-  cvs[j] <- (subdat[j,2]-outs[j,2])^2
-  cvs2[j] <- (subdat[j,3]-outs[j,3])^2
-  print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+  return(out.aic)
 }
+ 
 
-cvs
-cvs2
+start.vals <- parmeters
 
-mean(cvs, na.rm=T)
-mean(cvs2, na.rm=T)
-plot(cvs~cvs2)
+famos.fit <- famos(init.par = start.vals,
+                   fit.fn = cost.function,
+                   homedir = tempdir(),
+                   init.model.type = "random",
+                   data = sim.data,
+                   inits = state,
+                   verbose=T)
 
-sqrt(sum(cvs, na.rm=T)/n) # standard deviation of predicted errors
+print(famos.fit)
 
+ 
 
-
-cost <- function(p,e) {
-  out <- ode(y = state, 
-             times = times, 
-             func = pkmodel, 
-             parms = p,
-             events = list(data=e))
-  modCost(out,subdat, weight="none") # put this inside the LOOCV
-}
-
-fitfull <- modFit(f=cost, p=parmeters, e=dose_data) 
-#summary(fitfull)
-
-outfull <- ode(y = state, 
-            times = times, 
-            func = pkmodel, 
-            parms = coef(fitfull),
-            events = list(data=dose_data))
-
-
-nfull <- length(subdat$time)
-cvsfull <- rep(0,nfull)
-cvs2full <- rep(0,nfull)
-cvsfull <- (subdat[,2]-outfull[,2])^2
-cvs2full <- (subdat[,3]-outfull[,3])^2
-
-mean(cvsfull)
-sqrt(sum(cvsfull, na.rm=T)/n) # standard deviation of predicted errors
-mean(cvs2full)
-sqrt(sum(cvs2full, na.rm=T)/n) # standard deviation of predicted errors
-
-mean((cvsfull-cvs)/cvsfull, na.rm=T)
-
-
-
-LOOCVPFOSODE <- data.frame(
-  tissue=c("liver","body"),
-  full=c(mean(cvsfull), mean(cvs2full)),
-  LOO=c(mean(cvs, na.rm=T), mean(cvs2, na.rm=T))
-  ) |>
-  group_by(tissue) |>
-  mutate(perc_diff=(full-LOO)/full)
-
-kable(LOOCVPFOSODE)
-
-```
-
-
-
-
-#### Tarazona Dynamic model  
-
-
-```{r}
-
+ 
 
 
 ```
-
-
-
-
-#### 8:2 FTS liver and whole body ODE  
-
-
+ 
+ #### PFOS liver and whole body ODE new model  
+ 
+ 
 ```{r}
 
+
+ 
 
 pkmodel <- function(time, state, parmeters) {
   with(as.list(c(state, parmeters)), {
-    dbod <- k21*liv-k12*bod-kel*bod
+    dgut <- -k01*bod-poop*gut
+    dbod <- k01*gut+k21*liv-k12*bod-kel*bod
     dliv <- k12*bod-k21*liv#-kel2*liv
-    list(c(dbod, dliv))
+    list(c(dgut,dbod, dliv))
   })
 }
 
-state <- c(bod = 0.1, liv = 0.1) # initial concs
-parmeters <- c(k12 = 0.938,
-               k21 = 0.108,
-               kel = 0.091)#,
-               #kel2 = 0.1) 
-times <- seq(0, 56, 1) # start points to end points
+ 
+
+state <- c(gut=25,bod = 26.568, liv = 259.767) # initial concs
+
+parmeters <- c(k12 = 0.5,
+               k21 = 0.3,
+               kel = 0.00001,
+               k01 = 0.17,poop=0.5)#,
+               #kel2 = 0.9)
+
+times <- seq(0, 56, by=1) # start points to end points
+
 dose_data <- data.frame(
-  var=c("bod","liv"),
-  time=c(0,0,2,2,5,5,7,7,9,9,12,12,14,14,16,16,19,19,21,21,23,23,26,26),
-  value=c(as.numeric(885.228*0.1),as.numeric(885.228*0.001)),
+  var=c("gut"),
+  time=c(0,2,5,7,9,12,14,16,19,21,23,26),
+  value=c(as.numeric(697.138)),
   method="add"
 )
 
 
 
 
-# calcuate differential equation with parameters
-# and initialized state values
-#out <- ode(y = state, 
-#           times = times, 
-#           func = pkmodel, 
-#           parms = parmeters,
-#           events = list(data=dose_data)) 
-#out <- as.data.frame(out)
-#
-#par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
-#plot(out$time, 
-#     out$liv, 
-#     xlab = "Time (day)", 
-#     ylab= "PFOS Concentration (ug/kg)", 
-#     type = 'l',ylim=c(0,2750), bty="l")
-#points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"), col="black", pch=4)
-#legend("topleft", c("Whole Body (minus liver)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
-#plot(out$time,
-#     out$bod,
-#     type="l",
-#     lty=2,
-#     col="red", 
-#     xlab = "Time (day)", 
-#     ylab= "PFOS Concentration (ug/kg)", 
-#     ylim=c(0,2750), bty="l")
-#points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"), col="red", pch=3)
-#par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
-
-
-#dat <- data.frame(
-#  time=seq(0,56,7),
-#  liv=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%group_by(day)%>%summarize(liv=mean(conc2))%>%ungroup()%>%dplyr::select(liv),
-#  bod=toad%>%filter(PFAS=="PFOS"&tissue=="wholebody")%>%group_by(day)%>%summarize(bod=mean(conc2))%>%ungroup()%>%dplyr::select(bod)
-#  #time=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%dplyr::select(day)%>%dplyr::rename(time=day),
-#  time=toad$day[toad$PFAS=="PFOS"&toad$tissue=="liver"],
-#  #liv=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%dplyr::select(conc2)%>%dplyr::rename(liv=conc2),
-#  liv=toad$conc2[toad$PFAS=="PFOS"&toad$tissue=="liver"],
-#  #bod=toad%>%filter(PFAS=="PFOS"&tissue=="wholebody")%>%dplyr::select(conc2)%>%dplyr::rename(bod=conc2)
-#  bod=toad$conc2[toad$PFAS=="PFOS"&toad$tissue=="wholebody"]
-#)
 
 dat <- toad %>%
-  filter(PFAS=="8:2 FTS") %>%
-  group_by(tissue,day,toadID) %>%
+  filter(PFAS=="PFOS") %>% 
+  #filter(day!=28) %>%
+  group_by(tissue,day)%>%#,toadID) %>%
   summarize(conc=mean(conc3)) %>%
   pivot_wider(names_from=tissue, values_from=conc) %>%
   rename(liv=Liver,
          bod=`Whole Body`,
          time=day) %>%
-  dplyr::select(-toadID) %>%
+  #dplyr::select(-toadID) %>%
   ungroup() %>%
   data.frame()
 
 
+
 cost <- function(p,e) {
-  out <- ode(y = state, 
-             times = times, 
-             func = pkmodel, 
+  out <- ode(y = state,
+             times = times,
+             func = pkmodel,
              parms = p,
              events = list(data=e))
-  modCost(out,dat, weight="none")
+
+  modCost(out,dat, weight="none") # put this inside the LOOCV
 }
 
-fit <- modFit(f=cost, p=parmeters, e=dose_data)
+ 
+
+fit <- modFit(f=cost, p=parmeters, e=dose_data,  lower=0, upper=1)
+
 summary(fit)
 
-out2 <- ode(y = state, 
-            times = times, 
-            func = pkmodel, 
-            parms = coef(fit),
-            events = list(data=dose_data)) 
+ 
 
-#plot(out2, obs=dat)
+out2 <- ode(y = state,
+            times = times,
+            func = pkmodel,
+            parms = coef(fit),
+            events = list(data=dose_data)) # or does LOOCV have to run all the way through here?
+
+
 
 par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
 plot(out2,
      which="liv",
      mfrow=NULL,
-     xlab = "Time (day)", 
-     ylab= "8:2 FTS Concentration (ug/kg)", 
-     ylim=c(0,275), bty="l", type="l",
+     xlab = "Time (day)",
+     ylab= "PFOS Concentration (ug/kg)",
+     ylim=c(0,2750), bty="l", type="l",
      main="")
-points(conc3~day, data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"), col="black", pch=4)
+points(liv~time, data=dat, col="black", pch=4)
 legend("topleft", c("Whole Body\n(minus liver and blood)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
 plot(out2,
      which="bod",
      mfrow=NULL,
      type="l",
      lty=2,
-     col="red", 
-     xlab = "Time (day)", 
-     ylab= "8:2 FTS Concentration (ug/kg)", 
-     ylim=c(0,275), bty="l",
+     col="red",
+     xlab = "Time (day)",
+     ylab= "PFOS Concentration (ug/kg)",
+     ylim=c(0,1000), bty="l",
      main="")
-points(conc3~day, data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Whole Body"), col="red", pch=3)
+points(bod~time, data=dat, col="red", pch=3)
 par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
 
-cost2 <- function(p,e, data, ...) {
-  #yy <- p[c("bod","liv")]
-  pp <- p[c("k12","k21","kel")]#,"kel2")]
-  out <- ode(y = state, 
-             times = times, 
-             func = pkmodel, 
-             parms = pp,
-             events = list(data=e))
-  modCost(out,dat, ...)
+out2df <- data.frame(out2) %>% filter(time%in%unique(dat$time))
+plot(dat$liv,out2df$liv)
+abline(a=0,b=1)
+
+
+plot(dat$bod,out2df$bod)
+abline(a=0,b=1)
+
+
+```
+
+ 
+
+
+
+ 
+
+#### PFOS liver and whole body ODE LOOCV 
+
+ 
+
+Appears to be an improvement? 
+
+ 
+
+7% vs 2%
+
+ 
+
+```{r}
+
+ 
+
+ 
+
+subdat <- toad %>%
+
+  filter(PFAS=="PFOS") %>%
+
+  group_by(tissue,day,toadID) %>%
+
+  summarize(conc=mean(conc3)) %>%
+
+  pivot_wider(names_from=tissue, values_from=conc) %>%
+
+  rename(liv=Liver,
+
+         bod=`Whole Body`,
+
+         time=day) %>%
+
+  dplyr::select(-toadID) %>%
+
+  ungroup() %>%
+
+  data.frame()
+
+ 
+
+pkmodel <- function(time, state, parmeters) {  # two compartment ODE system model
+
+  with(as.list(c(state, parmeters)), {
+
+    dbod <- k21*liv-k12*bod-kel*bod
+
+    dliv <- k12*bod-k21*liv#-kel2*liv
+
+    list(c(dbod, dliv))
+
+  })
+
 }
 
-parmeters2 <- c(#bod=1, liv=250,
-                k12 = 0.938,
-                k21 = 0.108,
-                kel = 0.091)#,
-                #kel2=0.01) 
+ 
 
-fit2 <- modFit(f=cost2, p=parmeters2, e=dose_data, data=dat, method="Marq")
+ 
 
-summary(fit2)
+state <- c(bod = 26.568, liv = 259.767) # initial concs
 
-out23 <- ode(y = state, 
-            times = times, 
-            func = pkmodel, 
-            parms = coef(fit2),
-            events = list(data=dose_data)) 
+ 
 
-#plot(out23, obs=dat)
+parmeters <- c(k12 = 0.146,
 
-par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
-plot(out23,
-     which="liv",
-     mfrow=NULL,
-     xlab = "Time (day)", 
-     ylab= "8:2 FTS Concentration [\u03BCg/kg]", 
-     ylim=c(0,275), bty="l", type="l",
-     main="")
-points(conc3~day, data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"), col="black", pch=4)
-legend("topleft", c("Whole Body\n(minus liver and blood)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
-plot(out23,
-     which="bod",
-     mfrow=NULL,
-     type="l",
-     lty=2,
-     col="red", 
-     xlab = "Time (day)", 
-     ylab= "8:2 FTS Concentration [\u03BCg/kg]", 
-     ylim=c(0,275), bty="l",
-     main="")
-points(conc3~day, data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Whole Body"), col="red", pch=3)
-par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
+               k21 = 0.007,
+
+               kel = 0.007) # initial parameter estimates from nls()/lm()
+
+ 
+
+times <- seq(0, 56, by=1) # start points to end points
+
+ 
+
+dose_data <- data.frame(
+
+  var=c("bod"),
+
+  time=c(0,2,5,7,9,12,14,16,19,21,23,26),
+
+  value=c(as.numeric(697.138*0.169)),
+
+  method="add"
+
+)
+
+ 
+
+ 
+
+ 
+
+n <- length(subdat$time)
+
+cvs <- rep(0,n)
+
+cvs2 <- rep(0,n)
+
+for(j in seq(n)){
+
+  sds <- subdat[-j,]
+
+ 
+
+  cost2 <- function(p,e) {
+
+    out <- ode(y = state,
+
+               times = times,
+
+               func = pkmodel,
+
+               parms = p,
+
+               events = list(data=e))
+
+    modCost(out, sds, weight="none")
+
+  }
+
+  fits <- modFit(f=cost2, p=parmeters, e=dose_data, lower=0, upper=1)
+
+ 
+
+  outs <- data.frame(ode(y = state,
+
+                         times = times,
+
+                         func = pkmodel,
+
+                         parms = coef(fits),
+
+                         events = list(data=dose_data)))
+
+  cvs[j] <- (subdat[j,2]-outs[j,2])^2
+
+  cvs2[j] <- (subdat[j,3]-outs[j,3])^2
+
+  print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+
+}
+
+ 
+
+cvs
+plot(density(cvs[!is.na(cvs)]))
+plot(density(log10(cvs[!is.na(cvs)])))
+cvsode <- cvs
+
+cvs2
+
+ 
+
+mean(cvs, na.rm=T)
+
+mean(cvs2, na.rm=T)
+
+ 
+
+ 
+
+sqrt(sum(cvs, na.rm=T)/n) # standard deviation of predicted errors
+
+ 
+
+ 
+
+ 
+
+cost <- function(p,e) {
+
+  out <- ode(y = state,
+
+             times = times,
+
+             func = pkmodel,
+
+             parms = p,
+
+             events = list(data=e))
+
+  modCost(out,subdat, weight="none") # put this inside the LOOCV
+
+}
+
+ 
+
+fitfull <- modFit(f=cost, p=parmeters, e=dose_data, lower=0, upper=1)
+
+#summary(fitfull)
+
+ 
+
+outfull <- ode(y = state,
+
+            times = times,
+
+            func = pkmodel,
+
+            parms = coef(fitfull),
+
+            events = list(data=dose_data))
+
+ 
+
+ 
+
+nfull <- length(subdat$time)
+
+cvsfull <- rep(0,nfull)
+
+cvs2full <- rep(0,nfull)
+
+cvsfull <- (subdat[,2]-outfull[,2])^2
+
+cvs2full <- (subdat[,3]-outfull[,3])^2
+
+ 
+
+mean(cvsfull)
+
+sqrt(sum(cvsfull, na.rm=T)/n) # standard deviation of predicted errors
+
+mean(cvs2full)
+
+sqrt(sum(cvs2full, na.rm=T)/n) # standard deviation of predicted errors
+
+ 
+
+mean((cvsfull-cvs)/cvsfull, na.rm=T)
+
+ 
+
+ 
+
+ 
+
+LOOCVPFOSODE <- data.frame(
+
+  tissue=c("liver","body"),
+
+  full=c(mean(cvsfull), mean(cvs2full)),
+
+  LOO=c(mean(cvs, na.rm=T), mean(cvs2, na.rm=T))
+
+  ) |>
+
+  group_by(tissue) |>
+
+  mutate(perc_diff=(full-LOO)/full)
+
+ 
+
+kable(LOOCVPFOSODE)
+
+ 
+
+```
+
+ 
+ 
+## Comparison of PFOS liver MSEs  
+
+
+ 
+```{r}
+
+plot(density(log10(cvsnls)), xlim=c(0,10))
+points(density(log10(cvsode[!is.na(cvsode)])), type="l", col="red")
 
 ```
 
 
+ 
 
 
 
-#### 8:2 FTS liver and whole body ODE LOOCV  
+ 
 
-Appears to be an improvement?  
+ 
 
-7% vs 2%
+ 
+
+#### 8:2 FTS liver and whole body ODE 
+
+ 
+
+ 
 
 ```{r}
 
+ 
 
-subdat <- toad %>%
-  filter(PFAS=="8:2 FTS") %>%
-  group_by(tissue,day,toadID) %>%
-  summarize(conc=mean(conc3)) %>%
-  pivot_wider(names_from=tissue, values_from=conc) %>%
-  rename(liv=Liver,
-         bod=`Whole Body`,
-         time=day) %>%
-  dplyr::select(-toadID) %>%
-  ungroup() %>%
-  data.frame()
+ 
 
-pkmodel <- function(time, state, parmeters) {  # two compartment ODE system model
+pkmodel <- function(time, state, parmeters) {
+
   with(as.list(c(state, parmeters)), {
+
     dbod <- k21*liv-k12*bod-kel*bod
+
     dliv <- k12*bod-k21*liv#-kel2*liv
+
     list(c(dbod, dliv))
+
   })
+
 }
 
+ 
 
 state <- c(bod = 0.1, liv = 0.1) # initial concs
 
 parmeters <- c(k12 = 0.938,
+
                k21 = 0.108,
-               kel = 0.091) # initial parameter estimates from nls()/lm()
 
-times <- seq(0, 56, by=1) # start points to end points
+               kel = 0.091)#,
 
-dose_data <- data.frame(                 # dosing schedule--add value to specific tissues at times
+               #kel2 = 0.1)
+
+times <- seq(0, 56, 1) # start points to end points
+
+dose_data <- data.frame(
+
   var=c("bod","liv"),
+
   time=c(0,0,2,2,5,5,7,7,9,9,12,12,14,14,16,16,19,19,21,21,23,23,26,26),
+
   value=c(as.numeric(885.228*0.1),as.numeric(885.228*0.001)),
+
   method="add"
-) 
 
+)
 
+ 
 
-n <- length(subdat$time)
-cvs <- rep(0,n)
-cvs2 <- rep(0,n)
-for(j in seq(n)){
-  sds <- subdat[-j,]
-  
-  cost2 <- function(p,e) {
-    out <- ode(y = state, 
-               times = times, 
-               func = pkmodel, 
-               parms = p,
-               events = list(data=e))
-    modCost(out, sds, weight="none") 
-  }
-  fits <- modFit(f=cost2, p=parmeters, e=dose_data)
-  
-  outs <- data.frame(ode(y = state, 
-                         times = times, 
-                         func = pkmodel, 
-                         parms = coef(fits),
-                         events = list(data=dose_data)))
-  cvs[j] <- (subdat[j,2]-outs[j,2])^2
-  cvs2[j] <- (subdat[j,3]-outs[j,3])^2
-  print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
-}
+ 
 
-cvs
-cvs2
+ 
 
-mean(cvs, na.rm=T)
-mean(cvs2, na.rm=T)
-plot(cvs~cvs2)
+ 
 
+# calcuate differential equation with parameters
+
+# and initialized state values
+
+#out <- ode(y = state,
+
+#           times = times,
+
+#           func = pkmodel,
+
+#           parms = parmeters,
+
+#           events = list(data=dose_data))
+
+#out <- as.data.frame(out)
+
+#
+
+#par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
+
+#plot(out$time,
+
+#     out$liv,
+
+#     xlab = "Time (day)",
+
+#     ylab= "PFOS Concentration (ug/kg)",
+
+#     type = 'l',ylim=c(0,2750), bty="l")
+
+#points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Liver"), col="black", pch=4)
+
+#legend("topleft", c("Whole Body (minus liver)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
+
+#plot(out$time,
+
+#     out$bod,
+
+#     type="l",
+
+#     lty=2,
+
+#     col="red",
+
+#     xlab = "Time (day)",
+
+#     ylab= "PFOS Concentration (ug/kg)",
+
+#     ylim=c(0,2750), bty="l")
+
+#points(conc3~day, data=toad%>%filter(PFAS=="PFOS"&tissue=="Whole Body"), col="red", pch=3)
+
+#par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
+
+ 
+
+ 
+
+#dat <- data.frame(
+
+#  time=seq(0,56,7),
+
+#  liv=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%group_by(day)%>%summarize(liv=mean(conc2))%>%ungroup()%>%dplyr::select(liv),
+
+#  bod=toad%>%filter(PFAS=="PFOS"&tissue=="wholebody")%>%group_by(day)%>%summarize(bod=mean(conc2))%>%ungroup()%>%dplyr::select(bod)
+
+#  #time=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%dplyr::select(day)%>%dplyr::rename(time=day),
+
+#  time=toad$day[toad$PFAS=="PFOS"&toad$tissue=="liver"],
+
+#  #liv=toad%>%filter(PFAS=="PFOS"&tissue=="liver")%>%dplyr::select(conc2)%>%dplyr::rename(liv=conc2),
+
+#  liv=toad$conc2[toad$PFAS=="PFOS"&toad$tissue=="liver"],
+
+#  #bod=toad%>%filter(PFAS=="PFOS"&tissue=="wholebody")%>%dplyr::select(conc2)%>%dplyr::rename(bod=conc2)
+
+#  bod=toad$conc2[toad$PFAS=="PFOS"&toad$tissue=="wholebody"]
+
+#)
+
+ 
+
+dat <- toad %>%
+
+  filter(PFAS=="8:2 FTS") %>%
+
+  group_by(tissue,day,toadID) %>%
+
+  summarize(conc=mean(conc3)) %>%
+
+  pivot_wider(names_from=tissue, values_from=conc) %>%
+
+  rename(liv=Liver,
+
+         bod=`Whole Body`,
+
+         time=day) %>%
+
+  dplyr::select(-toadID) %>%
+
+  ungroup() %>%
+
+  data.frame()
+
+ 
+
+ 
 
 cost <- function(p,e) {
-  out <- ode(y = state, 
-             times = times, 
-             func = pkmodel, 
+
+  out <- ode(y = state,
+
+             times = times,
+
+             func = pkmodel,
+
              parms = p,
+
              events = list(data=e))
-  modCost(out,subdat, weight="none") # put this inside the LOOCV
+
+  modCost(out,dat, weight="none")
+
 }
 
-fitfull <- modFit(f=cost, p=parmeters, e=dose_data) 
-#summary(fitfull)
+ 
 
-outfull <- ode(y = state, 
-            times = times, 
-            func = pkmodel, 
-            parms = coef(fitfull),
+fit <- modFit(f=cost, p=parmeters, e=dose_data)
+
+summary(fit)
+
+ 
+
+out2 <- ode(y = state,
+
+            times = times,
+
+            func = pkmodel,
+
+            parms = coef(fit),
+
             events = list(data=dose_data))
 
+ 
 
-nfull <- length(subdat$time)
-cvsfull <- rep(0,nfull)
-cvs2full <- rep(0,nfull)
-cvsfull <- (subdat[,2]-outfull[,2])^2
-cvs2full <- (subdat[,3]-outfull[,3])^2
+#plot(out2, obs=dat)
 
-mean(cvsfull)
-mean(cvs2full)
+ 
 
-LOOCV82FTSODE <- data.frame(
-  tissue=c("liver","body"),
-  full=c(mean(cvsfull), mean(cvs2full)),
-  LOO=c(mean(cvs, na.rm=T), mean(cvs2, na.rm=T))
-  ) |>
-  group_by(tissue) |>
-  mutate(perc_diff=(full-LOO)/full)
+par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
 
-kable(LOOCV82FTSODE)
+plot(out2,
+
+     which="liv",
+
+     mfrow=NULL,
+
+     xlab = "Time (day)",
+
+     ylab= "8:2 FTS Concentration (ug/kg)",
+
+     ylim=c(0,275), bty="l", type="l",
+
+     main="")
+
+points(conc3~day, data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"), col="black", pch=4)
+
+legend("topleft", c("Whole Body\n(minus liver and blood)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
+
+plot(out2,
+
+     which="bod",
+
+     mfrow=NULL,
+
+     type="l",
+
+     lty=2,
+
+     col="red",
+
+     xlab = "Time (day)",
+
+     ylab= "8:2 FTS Concentration (ug/kg)",
+
+     ylim=c(0,275), bty="l",
+
+     main="")
+
+points(conc3~day, data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Whole Body"), col="red", pch=3)
+
+par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
+
+ 
+
+cost2 <- function(p,e, data, ...) {
+
+  #yy <- p[c("bod","liv")]
+
+  pp <- p[c("k12","k21","kel")]#,"kel2")]
+
+  out <- ode(y = state,
+
+             times = times,
+
+             func = pkmodel,
+
+             parms = pp,
+
+             events = list(data=e))
+
+  modCost(out,dat, ...)
+
+}
+
+ 
+
+parmeters2 <- c(#bod=1, liv=250,
+
+                k12 = 0.938,
+
+                k21 = 0.108,
+
+                kel = 0.091)#,
+
+                #kel2=0.01)
+
+ 
+
+fit2 <- modFit(f=cost2, p=parmeters2, e=dose_data, data=dat, method="Marq")
+
+ 
+
+summary(fit2)
+
+ 
+
+out23 <- ode(y = state,
+
+            times = times,
+
+            func = pkmodel,
+
+            parms = coef(fit2),
+
+            events = list(data=dose_data))
+
+ 
+
+#plot(out23, obs=dat)
+
+ 
+
+par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
+
+plot(out23,
+
+     which="liv",
+
+     mfrow=NULL,
+
+     xlab = "Time (day)",
+
+     ylab= "8:2 FTS Concentration [\u03BCg/kg]",
+
+     ylim=c(0,275), bty="l", type="l",
+
+     main="")
+
+points(conc3~day, data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Liver"), col="black", pch=4)
+
+legend("topleft", c("Whole Body\n(minus liver and blood)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
+
+plot(out23,
+
+     which="bod",
+
+     mfrow=NULL,
+
+     type="l",
+
+     lty=2,
+
+     col="red",
+
+     xlab = "Time (day)",
+
+     ylab= "8:2 FTS Concentration [\u03BCg/kg]",
+
+     ylim=c(0,275), bty="l",
+
+     main="")
+
+points(conc3~day, data=toad%>%filter(PFAS=="8:2 FTS"&tissue=="Whole Body"), col="red", pch=3)
+
+par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
+
+ 
 
 ```
 
+ 
+
+ 
+```{r}
+
+
+ 
+
+pkmodel <- function(time, state, parmeters) {
+  with(as.list(c(state, parmeters)), {
+    dgut <- -k01*bod-poop*gut
+    dbod <- k01*gut+k21*liv-k12*bod-kel*bod
+    dliv <- k12*bod-k21*liv#-kel2*liv
+    list(c(dgut,dbod, dliv))
+  })
+}
+
+ 
+
+state <- c(gut=0.1,bod = 0.1, liv = 0.1) # initial concs
+
+parmeters <- c(k12 = 0.5,
+               k21 = 0.3,
+               kel = 0.00001,
+               k01 = 0.17,poop=0.5)#,
+               #kel2 = 0.9)
+
+times <- seq(0, 56, by=1) # start points to end points
+
+dose_data <- data.frame(
+  var=c("gut"),
+  time=c(0,2,5,7,9,12,14,16,19,21,23,26),
+  value=c(as.numeric(885.228)),
+  method="add"
+)
 
 
 
 
 
+dat <- toad %>%
+  filter(PFAS=="8:2 FTS") %>% 
+  group_by(tissue,day)%>%#,toadID) %>%
+  summarize(conc=median(conc3)) %>%
+  pivot_wider(names_from=tissue, values_from=conc) %>%
+  rename(liv=Liver,
+         bod=`Whole Body`,
+         time=day) %>%
+  #dplyr::select(-toadID) %>%
+  ungroup() %>%
+  data.frame()
 
 
 
+cost <- function(p,e) {
+  out <- ode(y = state,
+             times = times,
+             func = pkmodel,
+             parms = p,
+             events = list(data=e))
 
+  modCost(out,dat, weight="none") # put this inside the LOOCV
+}
+
+ 
+
+fit <- modFit(f=cost, p=parmeters, e=dose_data,  lower=0, upper=1)
+
+summary(fit)
+
+ 
+
+out2 <- ode(y = state,
+            times = times,
+            func = pkmodel,
+            parms = coef(fit),
+            events = list(data=dose_data)) # or does LOOCV have to run all the way through here?
+
+
+
+par(mfrow=c(1,2), mai=c(0.8,0.8,0.1,0.1))
+plot(out2,
+     which="liv",
+     mfrow=NULL,
+     xlab = "Time (day)",
+     ylab= "8:2 FTS Concentration (ug/kg)",
+     ylim=c(0,275), bty="l", type="l",
+     main="")
+points(liv~time, data=dat, col="black", pch=4)
+legend("topleft", c("Whole Body\n(minus liver and blood)", "Liver"), col=c("Red","Black"), pch=c(3,4), lty=c(2,1), bty="n")
+plot(out2,
+     which="bod",
+     mfrow=NULL,
+     type="l",
+     lty=2,
+     col="red",
+     xlab = "Time (day)",
+     ylab= "8:2 FTS Concentration (ug/kg)",
+     ylim=c(0,275), bty="l",
+     main="")
+points(bod~time, data=dat, col="red", pch=3)
+par(mfrow=c(1,2), mai=c(1,1,0.5,0.5))
+
+out2df <- data.frame(out2) %>% filter(time%in%unique(dat$time))
+plot(dat$liv,out2df$liv)
+abline(a=0,b=1)
+
+out2df <- data.frame(out2) %>% filter(time%in%unique(dat$time))
+plot(dat$bod,out2df$bod)
+abline(a=0,b=1)
+
+```
+ 
+
+ 
+
+ 
+
+#### 8:2 FTS liver and whole body ODE LOOCV 
+
+ 
+
+Appears to be an improvement? 
+
+ 
+
+7% vs 2%
+
+ 
+
+```{r}
+
+ 
+
+ 
+
+subdat <- toad %>%
+
+  filter(PFAS=="8:2 FTS") %>%
+
+  group_by(tissue,day,toadID) %>%
+
+  summarize(conc=mean(conc3)) %>%
+
+  pivot_wider(names_from=tissue, values_from=conc) %>%
+
+  rename(liv=Liver,
+
+         bod=`Whole Body`,
+
+         time=day) %>%
+
+  dplyr::select(-toadID) %>%
+
+  ungroup() %>%
+
+  data.frame()
+
+ 
+
+pkmodel <- function(time, state, parmeters) {  # two compartment ODE system model
+
+  with(as.list(c(state, parmeters)), {
+
+    dbod <- k21*liv-k12*bod-kel*bod
+
+    dliv <- k12*bod-k21*liv#-kel2*liv
+
+    list(c(dbod, dliv))
+
+  })
+
+}
+
+ 
+
+ 
+
+state <- c(bod = 0.1, liv = 0.1) # initial concs
+
+ 
+
+parmeters <- c(k12 = 0.938,
+
+               k21 = 0.108,
+
+               kel = 0.091) # initial parameter estimates from nls()/lm()
+
+ 
+
+times <- seq(0, 56, by=1) # start points to end points
+
+ 
+
+dose_data <- data.frame(                 # dosing schedule--add value to specific tissues at times
+
+  var=c("bod","liv"),
+
+  time=c(0,0,2,2,5,5,7,7,9,9,12,12,14,14,16,16,19,19,21,21,23,23,26,26),
+
+  value=c(as.numeric(885.228*0.1),as.numeric(885.228*0.001)),
+
+  method="add"
+
+)
+
+ 
+
+ 
+
+ 
+
+n <- length(subdat$time)
+
+cvs <- rep(0,n)
+
+cvs2 <- rep(0,n)
+
+for(j in seq(n)){
+
+  sds <- subdat[-j,]
+
+ 
+
+  cost2 <- function(p,e) {
+
+    out <- ode(y = state,
+
+               times = times,
+
+               func = pkmodel,
+
+               parms = p,
+
+               events = list(data=e))
+
+    modCost(out, sds, weight="none")
+
+  }
+
+  fits <- modFit(f=cost2, p=parmeters, e=dose_data)
+
+ 
+
+  outs <- data.frame(ode(y = state,
+
+                         times = times,
+
+                         func = pkmodel,
+
+                         parms = coef(fits),
+
+                         events = list(data=dose_data)))
+
+  cvs[j] <- (subdat[j,2]-outs[j,2])^2
+
+  cvs2[j] <- (subdat[j,3]-outs[j,3])^2
+
+  print(paste0(j," of ",n," finished (",round(j/n*100),"%)"))
+
+}
+
+ 
+
+cvs
+
+cvs2
+
+ 
+
+mean(cvs, na.rm=T)
+
+mean(cvs2, na.rm=T)
+
+plot(cvs~cvs2)
+
+ 
+
+ 
+
+cost <- function(p,e) {
+
+  out <- ode(y = state,
+
+             times = times,
+
+             func = pkmodel,
+
+             parms = p,
+
+             events = list(data=e))
+
+  modCost(out,subdat, weight="none") # put this inside the LOOCV
+
+}
+
+ 
+
+fitfull <- modFit(f=cost, p=parmeters, e=dose_data)
+
+#summary(fitfull)
+
+ 
+
+outfull <- ode(y = state,
+
+            times = times,
+
+            func = pkmodel,
+
+            parms = coef(fitfull),
+
+            events = list(data=dose_data))
+
+ 
+
+ 
+
+nfull <- length(subdat$time)
+
+cvsfull <- rep(0,nfull)
+
+cvs2full <- rep(0,nfull)
+
+cvsfull <- (subdat[,2]-outfull[,2])^2
+
+cvs2full <- (subdat[,3]-outfull[,3])^2
+
+ 
+
+mean(cvsfull)
+
+mean(cvs2full)
+
+ 
+
+LOOCV82FTSODE <- data.frame(
+
+  tissue=c("liver","body"),
+
+  full=c(mean(cvsfull), mean(cvs2full)),
+
+  LOO=c(mean(cvs, na.rm=T), mean(cvs2, na.rm=T))
+
+  ) |>
+
+  group_by(tissue) |>
+
+  mutate(perc_diff=(full-LOO)/full)
+
+ 
+
+kable(LOOCV82FTSODE)
+
+
+
+```
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+ 
